@@ -1,0 +1,14 @@
+{
+  "name": "claude-plan-pilot",
+  "owner": {
+    "name": "kfoss-dwv"
+  },
+  "description": "claude-plan-pilot: plan pages from markdown. Install the one plugin it lists.",
+  "plugins": [
+    {
+      "name": "claude-plan-pilot",
+      "source": "./",
+      "description": "Plan pages: Claude writes plan.md, a script renders it to an interactive HTML page with diagrams, answer cards and comments."
+    }
+  ]
+}

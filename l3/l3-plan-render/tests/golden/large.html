@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Saved carts API</title>
+<meta name="generator" content="claude-plan-pilot l3-plan-render, contract 1">
+<meta name="plan-md" content="plan.md">
+<meta name="plan-build" content="154bb9b14f93">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style id="flow-css">
+/* flow-svg — styles for diagrams emitted by scripts/flow.py.
+   Neutrals and fonts resolve through host-page tokens when the page defines
+   them (--surface, --line, --fg, --muted, --code-bg, --font-sans, --font-mono)
+   so the figure sits naturally in any page. The semantic colours are the
+   skill's own and are NOT taken from the host: red means "where the bug
+   fires" and nothing else, so a host --accent can never leak red into "new". */
+.flow, .flow-figure {
+  --flow-surface: var(--surface, #FFFFFF);
+  --flow-band: var(--code-bg, #F1F3F6);
+  --flow-line: var(--line, #D6DBE1);
+  --flow-fg: var(--fg, #18202A);
+  --flow-muted: var(--muted, #5B6672);
+  --flow-bug: #C62828;     --flow-bug-soft: #FCE8E6;
+  --flow-new: #1F5FBF;     --flow-new-soft: #E4EDFB;
+  --flow-warn: #9A5C00;    --flow-warn-soft: #FDF1DC;
+  --flow-focus: #7A3FC7;   --flow-focus-soft: #F1E9FB;
+  --flow-ok: #2B7A4B;      --flow-ok-soft: #E3F3EA;
+  --flow-sans: var(--font-sans, "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif);
+  --flow-mono: var(--font-mono, "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .flow, :root:not([data-theme="light"]) .flow-figure, svg.flow:root {
+    --flow-surface: var(--surface, #181C22);
+    --flow-band: var(--code-bg, #1F242C);
+    --flow-line: var(--line, #2F3742);
+    --flow-fg: var(--fg, #E4E8EE);
+    --flow-muted: var(--muted, #98A3B0);
+    --flow-bug: #F2726B;   --flow-bug-soft: #3A1F1C;
+    --flow-new: #82AEF5;   --flow-new-soft: #1A2A40;
+    --flow-warn: #E4A74C;  --flow-warn-soft: #352812;
+    --flow-focus: #B795F0; --flow-focus-soft: #2A2140;
+    --flow-ok: #6CC495;    --flow-ok-soft: #17301F;
+  }
+}
+:root[data-theme="dark"] .flow, :root[data-theme="dark"] .flow-figure {
+  --flow-surface: var(--surface, #181C22);
+  --flow-band: var(--code-bg, #1F242C);
+  --flow-line: var(--line, #2F3742);
+  --flow-fg: var(--fg, #E4E8EE);
+  --flow-muted: var(--muted, #98A3B0);
+  --flow-bug: #F2726B;   --flow-bug-soft: #3A1F1C;
+  --flow-new: #82AEF5;   --flow-new-soft: #1A2A40;
+  --flow-warn: #E4A74C;  --flow-warn-soft: #352812;
+  --flow-focus: #B795F0; --flow-focus-soft: #2A2140;
+  --flow-ok: #6CC495;    --flow-ok-soft: #17301F;
+}
+
+.flow-figure { margin: 0; background: var(--flow-surface); border: 1px solid var(--flow-line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.flow-cap { font: 600 13px var(--flow-sans); color: var(--flow-fg); letter-spacing: 0.02em; }
+.flow-scroll { overflow-x: auto; }
+.flow-main { display: block; width: 100%; height: auto; }
+
+/* containers: one per service, vendor, client or stage */
+.flow .ct-box { fill: var(--flow-band); stroke: var(--flow-line); stroke-width: 1; }
+.flow .ct-vendor .ct-box { fill: none; stroke: var(--flow-muted); stroke-dasharray: 6 4; }
+.flow .ct-client .ct-box { fill: none; stroke: var(--flow-line); }
+.flow .ct-label { font: 600 11px var(--flow-mono); letter-spacing: 0.08em; fill: var(--flow-muted); }
+.flow .ct-tag { font: 500 11px var(--flow-sans); fill: var(--flow-muted); }
+.flow .ct.st-new .ct-box { stroke: var(--flow-new); stroke-width: 2; }
+.flow .ct.st-changed .ct-box { stroke: var(--flow-new); stroke-width: 2; stroke-dasharray: 6 4; }
+.flow .ct.st-removed .ct-box { stroke-dasharray: 4 3; opacity: 0.6; }
+.flow .ct.st-bug .ct-box { stroke: var(--flow-bug); stroke-width: 2; }
+.flow .ct.st-focus .ct-box { stroke: var(--flow-focus); stroke-width: 2; }
+
+/* groups: a runtime unit inside a container (a lambda, a task) around the steps it runs */
+.flow .gp-box { fill: none; stroke: var(--flow-muted); stroke-width: 1.25; }
+.flow .gp-label { font: 600 11.5px var(--flow-mono); fill: var(--flow-fg); }
+.flow .gp-tag { font: 600 10.5px var(--flow-sans); letter-spacing: 0.08em; fill: var(--flow-muted); }
+.flow .gp.st-new .gp-box { stroke: var(--flow-new); stroke-width: 1.75; }
+.flow .gp.st-changed .gp-box { stroke: var(--flow-new); stroke-width: 1.75; stroke-dasharray: 6 4; }
+
+/* nodes */
+.flow .nd-shape { fill: var(--flow-surface); stroke: var(--flow-muted); stroke-width: 1.25; }
+.flow .nd-bar { stroke: var(--flow-muted); stroke-width: 1.25; }
+.flow .nd-name { font: 600 12.5px var(--flow-mono); fill: var(--flow-fg); }
+.flow .nd-sub { font: 400 11.5px var(--flow-sans); fill: var(--flow-muted); }
+.flow .oc-ok .nd-shape { fill: var(--flow-ok-soft); stroke: var(--flow-ok); stroke-width: 1.75; }
+.flow .st-bug .nd-shape { fill: var(--flow-bug-soft); stroke: var(--flow-bug); stroke-width: 2; }
+.flow .st-bug .nd-bar { stroke: var(--flow-bug); }
+.flow .st-new .nd-shape { fill: var(--flow-new-soft); stroke: var(--flow-new); stroke-width: 2; }
+.flow .st-new .nd-bar { stroke: var(--flow-new); }
+.flow .st-changed .nd-shape { stroke: var(--flow-new); stroke-width: 2; stroke-dasharray: 5 3; }
+.flow .st-changed .nd-bar { stroke: var(--flow-new); }
+.flow .st-warn .nd-shape { fill: var(--flow-warn-soft); stroke: var(--flow-warn); stroke-width: 2; stroke-dasharray: 6 4; }
+.flow .st-removed .nd-shape { fill: none; stroke: var(--flow-muted); stroke-dasharray: 4 3; }
+.flow .st-removed .nd-name, .flow .st-removed .nd-sub { fill: var(--flow-muted); text-decoration: line-through; }
+.flow .st-focus .nd-shape { stroke: var(--flow-focus); stroke-width: 1.75; }
+.flow g.nd .nd-rim { fill: none; }
+.flow .nd-halo { fill: var(--flow-focus-soft); stroke: var(--flow-focus); stroke-width: 2; }
+
+/* edges */
+.flow .ed { fill: none; stroke: var(--flow-muted); stroke-width: 1.4; stroke-linejoin: round; }
+.flow .ed-bug { stroke: var(--flow-bug); stroke-width: 2.25; }
+.flow .ed-new { stroke: var(--flow-new); stroke-width: 2.25; }
+.flow .ed-changed { stroke: var(--flow-new); stroke-width: 2.25; stroke-dasharray: 6 4; }
+.flow .ed-warn { stroke: var(--flow-warn); stroke-width: 2; stroke-dasharray: 6 4; }
+.flow .ed-removed { stroke: var(--flow-muted); stroke-dasharray: 4 3; opacity: 0.7; }
+.flow .ed-focus { stroke: var(--flow-focus); stroke-width: 2.5; }
+.flow .ah { fill: var(--flow-muted); }
+.flow .ah-bug { fill: var(--flow-bug); }
+.flow .ah-new, .flow .ah-changed { fill: var(--flow-new); }
+.flow .ah-warn { fill: var(--flow-warn); }
+.flow .ah-focus { fill: var(--flow-focus); }
+.flow .ah-removed { fill: var(--flow-muted); opacity: 0.7; }
+.flow .ed-label { font: 500 11.5px var(--flow-sans); fill: var(--flow-muted); }
+.flow .lb-bug { fill: var(--flow-bug); font-weight: 600; }
+.flow .lb-new, .flow .lb-changed { fill: var(--flow-new); font-weight: 600; }
+.flow .lb-warn { fill: var(--flow-warn); font-weight: 600; }
+.flow .lb-focus { fill: var(--flow-focus); font-weight: 600; }
+.flow .lb-removed { text-decoration: line-through; }
+
+/* legend */
+.flow-legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0; padding: 0; list-style: none; font: 13px var(--flow-sans); color: var(--flow-muted); }
+.flow-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.flow-key { width: 30px; height: 18px; flex: none; overflow: visible; }
+</style>
+<style id="erd-css">
+/* erd-svg — styles for diagrams emitted by scripts/erd.py.
+   Every color resolves through a host-page token when the page defines it
+   (--surface, --line, --fg, --muted, --code-bg, --accent, --accent-soft,
+   --upd, --upd-soft, --font-sans, --font-mono) and falls back to the
+   built-in palette otherwise, so the diagram matches whatever page it is
+   pasted into and still renders on a bare page or as a standalone .svg. */
+.erd, .erd-figure {
+  --erd-surface: var(--surface, #FFFFFF);
+  --erd-head: var(--code-bg, #EFEDEA);
+  --erd-line: var(--line, #DCD8D3);
+  --erd-fg: var(--fg, #1A1817);
+  --erd-muted: var(--muted, #5E5A56);
+  --erd-accent: var(--accent, #B71C22);
+  --erd-accent-soft: var(--accent-soft, #F8E4E4);
+  --erd-upd: var(--upd, #1F5FA8);
+  --erd-upd-soft: var(--upd-soft, #E3ECF7);
+  --erd-sans: var(--font-sans, "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif);
+  --erd-mono: var(--font-mono, "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .erd, :root:not([data-theme="light"]) .erd-figure, svg.erd:root {
+    --erd-surface: var(--surface, #1E1C1B);
+    --erd-head: var(--code-bg, #272422);
+    --erd-line: var(--line, #3A3633);
+    --erd-fg: var(--fg, #ECE9E6);
+    --erd-muted: var(--muted, #A8A39E);
+    --erd-accent: var(--accent, #F2666C);
+    --erd-accent-soft: var(--accent-soft, #3B1D1F);
+    --erd-upd: var(--upd, #86B4EC);
+    --erd-upd-soft: var(--upd-soft, #1B2A3D);
+  }
+}
+:root[data-theme="dark"] .erd, :root[data-theme="dark"] .erd-figure {
+  --erd-surface: var(--surface, #1E1C1B);
+  --erd-head: var(--code-bg, #272422);
+  --erd-line: var(--line, #3A3633);
+  --erd-fg: var(--fg, #ECE9E6);
+  --erd-muted: var(--muted, #A8A39E);
+  --erd-accent: var(--accent, #F2666C);
+  --erd-accent-soft: var(--accent-soft, #3B1D1F);
+  --erd-upd: var(--upd, #86B4EC);
+  --erd-upd-soft: var(--upd-soft, #1B2A3D);
+}
+
+.erd-figure { margin: 0; background: var(--erd-surface); border: 1px solid var(--erd-line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.erd-scroll { overflow-x: auto; }
+.erd-main { display: block; width: 100%; height: auto; }
+
+.erd .tb-box { fill: var(--erd-surface); stroke: var(--erd-line); stroke-width: 1; }
+.erd .tb-head { fill: var(--erd-head); }
+.erd .tb-rule { stroke: var(--erd-line); }
+.erd .tb-title { font: 600 13px var(--erd-mono); fill: var(--erd-fg); }
+.erd .tb-tag { font: 500 11px var(--erd-sans); fill: var(--erd-muted); letter-spacing: 0.04em; }
+.erd .col { font: 400 12px var(--erd-mono); fill: var(--erd-fg); }
+.erd .note { font: 400 11px var(--erd-sans); fill: var(--erd-muted); }
+
+.erd .tb-anchor .tb-box { stroke: var(--erd-fg); stroke-width: 1.5; }
+.erd .tb-legacy .tb-box { stroke-dasharray: 4 3; }
+.erd .tb-legacy .col, .erd .tb-legacy .tb-title, .erd .col-muted { fill: var(--erd-muted); }
+.erd .tb-new .tb-box { stroke: var(--erd-accent); stroke-width: 2; }
+.erd .tb-new .tb-head { fill: var(--erd-accent-soft); }
+.erd .tb-new .tb-tag, .erd .note-new { fill: var(--erd-accent); font-weight: 600; }
+.erd .tb-changed .tb-box { stroke: var(--erd-upd); stroke-width: 2; }
+.erd .tb-changed .tb-head { fill: var(--erd-upd-soft); }
+.erd .tb-changed .tb-tag, .erd .note-changed { fill: var(--erd-upd); font-weight: 600; }
+.erd .row-new { fill: var(--erd-accent-soft); }
+.erd .col-new { fill: var(--erd-accent); font-weight: 500; }
+.erd .row-changed { fill: var(--erd-upd-soft); }
+.erd .col-changed { fill: var(--erd-upd); font-weight: 500; }
+
+.erd .link { fill: none; stroke: var(--erd-muted); stroke-width: 1.25; stroke-linejoin: round; }
+.erd .link-legacy { stroke-dasharray: 4 3; }
+.erd .link-new { stroke: var(--erd-accent); stroke-width: 2.25; }
+.erd .link-changed { stroke: var(--erd-upd); stroke-width: 2.25; }
+.erd .mk { fill: none; stroke: var(--erd-muted); stroke-width: 1.25; stroke-linecap: round; }
+.erd .mk-new { stroke: var(--erd-accent); stroke-width: 2; }
+.erd .mk-changed { stroke: var(--erd-upd); stroke-width: 2; }
+.erd circle.mk { fill: var(--erd-surface); }
+.erd .key-edge { stroke: var(--erd-line); stroke-width: 2; }
+.erd .rel-label { font: 600 11px var(--erd-mono); fill: var(--erd-muted); }
+.erd .rel-label-new { fill: var(--erd-accent); font-size: 12px; }
+.erd .rel-label-changed { fill: var(--erd-upd); font-size: 12px; }
+
+.erd-legend { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0; padding: 0; list-style: none; font: 13px var(--erd-sans); color: var(--erd-muted); }
+.erd-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.erd-key { width: 36px; height: 16px; flex: none; overflow: visible; }
+</style>
+<style id="plan-css">
+/* claude-plan-pilot l3-plan-render page style (from html-plan). Layout: one reading column (~880px); tabs split the plan into
+   Plan / Open questions / Testing / Agent progress / Challenges; each drill-down section
+   folds to a heading + gist so the page reads at about one screen when collapsed.
+   Neutral tokens use the names flow-svg and erd-svg read (--surface --line --fg --muted
+   --code-bg --font-sans --font-mono) so embedded figures match the page.
+   Semantic colours copy flow-svg exactly: red = where the bug fires, blue = new,
+   dashed blue = changed, amber = silent bad path, violet = focus, green = success.
+   The page's own accent is --brand, never --accent: erd-svg reads --accent for "new". */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1b2230;
+  --muted: #5b6577;
+  --line: #dde1e8;
+  --code-bg: #eef1f5;
+  --brand: #b4480f;
+  --brand-soft: #fbeee6;
+  --bug: #C62828;   --bug-soft: #FCE8E6;
+  --new: #1F5FBF;   --new-soft: #E4EDFB;
+  --warn: #9A5C00;  --warn-soft: #FDF1DC;
+  --focus: #7A3FC7; --focus-soft: #F1E9FB;
+  --ok: #2B7A4B;    --ok-soft: #E3F3EA;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d; --surface: #1a1f28; --fg: #e3e7ee; --muted: #9aa4b5; --line: #2c3340; --code-bg: #20262f;
+    --brand: #f08a4b; --brand-soft: #3a2518;
+    --bug: #F2726B; --bug-soft: #3A1F1C; --new: #82AEF5; --new-soft: #1A2A40;
+    --warn: #E4A74C; --warn-soft: #352812; --focus: #B795F0; --focus-soft: #2A2140;
+    --ok: #6CC495; --ok-soft: #17301F;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161d; --surface: #1a1f28; --fg: #e3e7ee; --muted: #9aa4b5; --line: #2c3340; --code-bg: #20262f;
+  --brand: #f08a4b; --brand-soft: #3a2518;
+  --bug: #F2726B; --bug-soft: #3A1F1C; --new: #82AEF5; --new-soft: #1A2A40;
+  --warn: #E4A74C; --warn-soft: #352812; --focus: #B795F0; --focus-soft: #2A2140;
+  --ok: #6CC495; --ok-soft: #17301F;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+/* The artifact host adds this reset; repeat it so local copies hide inactive panels too. */
+[hidden]:not([hidden=until-found i]) { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 15px; line-height: 1.55; }
+.page { max-width: 880px; margin: 0 auto; padding-inline: 20px; padding-block: 36px 80px; display: flex; flex-direction: column; gap: 36px; }
+header.top { display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 34px; line-height: 1.1; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; line-height: 1.2; margin: 0; text-wrap: balance; display: flex; gap: 10px; align-items: baseline; }
+h2 .n { font-family: var(--font-mono); font-size: 13px; color: var(--brand); font-weight: 500; }
+h3 { font-size: 13px; font-weight: 600; margin: 0; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+p { margin: 0; max-width: 70ch; }
+a { color: var(--brand); }
+.summary { font-size: 16px; }
+section { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-family: var(--font-mono); font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); white-space: nowrap; }
+.chip.key { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { font-family: var(--font-mono); font-size: 13px; line-height: 1.5; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; margin: 0; overflow-x: auto; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .add { color: var(--ok); } pre .del { color: var(--bug); text-decoration: line-through; }
+.loc { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-bottom: -8px; overflow-wrap: anywhere; }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: none; }
+td code { white-space: nowrap; overflow-wrap: normal; }
+td.id { font-family: var(--font-mono); font-size: 12.5px; color: var(--brand); font-weight: 500; white-space: nowrap; }
+ul, ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; max-width: 72ch; }
+.muted { color: var(--muted); }
+.note { border-left: 3px solid var(--warn); background: var(--surface); padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 14px; }
+.note strong { color: var(--warn); }
+.callout { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.callout.bug { border-color: var(--bug); background: var(--bug-soft); }
+.callout.bug h3 { color: var(--bug); }
+.callout.ok { border-color: var(--ok); background: var(--ok-soft); }
+.callout.ok h3 { color: var(--ok); }
+
+/* Tabs: one per panel; a bare #id in the link opens that tab (and any fold it names). */
+.tabs { display: flex; gap: 4px; margin-bottom: -1px; overflow-x: auto; scrollbar-width: none; }
+.tabs button { flex: none; white-space: nowrap; font: 600 14px var(--font-display); letter-spacing: .02em; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 14px; cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline; }
+.tabs button[aria-selected="true"] { color: var(--brand); border-bottom-color: var(--brand); }
+.tabs button:hover { color: var(--fg); }
+.tabs button:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: 4px; }
+.tabs .count { font: 500 11px var(--font-mono); color: var(--brand); background: var(--brand-soft); border-radius: 999px; padding: 0 6px; }
+.tabs .count:empty { display: none; }
+.panel { display: flex; flex-direction: column; gap: 32px; min-width: 0; }
+.panel-tools { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: -20px; }
+
+/* Folds: the summary carries the heading + a one-to-two-line gist; expanding shows the drill-down. */
+.fold > summary { display: flex; flex-direction: column; gap: 8px; cursor: pointer; list-style: none; border-radius: 6px; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary h2::before { content: "▸"; color: var(--brand); font-size: 14px; flex: none; width: 12px; }
+.fold[open] > summary h2::before { content: "▾"; }
+.fold > summary:hover h2 { color: var(--brand); }
+.fold > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 6px; }
+.gist { padding-left: 22px; color: var(--muted); font-size: 14.5px; }
+.fold[open] .gist { display: none; }
+.fold-body { display: flex; flex-direction: column; gap: 14px; padding-top: 16px; padding-left: 22px; min-width: 0; }
+
+/* Figures from flow-svg / erd-svg sit in .fig; the caption under them is the page's own. */
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fig { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fig > * { min-width: 0; }
+.flow-figure > *, .erd-figure > * { min-width: 0; }  /* grid items: let the figure's own scroller scroll */
+.flow-legend, .erd-legend { flex-direction: row; max-width: none; padding-left: 0; }  /* undo the page's ul column */
+.fig > .cap { font-size: 13.5px; color: var(--muted); max-width: 72ch; }
+
+/* One colour language per page: erd-svg's "new" (its default red) is remapped to flow-svg's
+   blue, and its "changed" becomes dashed blue, so red only ever means "where the bug fires". */
+.erd-figure, svg.erd { --accent: var(--new); --accent-soft: var(--new-soft); --upd: var(--new); --upd-soft: transparent; }
+.erd .tb-changed .tb-box { stroke-dasharray: 5 3; }
+.erd .link-changed, .erd .mk-changed { stroke-dasharray: 6 4; }
+.erd .row-changed { fill: none; }
+
+/* Numbers ledger: one operation per row, worked values on the right. */
+.ledgers { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.ledger { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ledger table { font-family: var(--font-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.ledger td { padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.ledger td:last-child { text-align: right; white-space: nowrap; padding-left: 12px; }
+.ledger .f { color: var(--muted); font-size: 11.5px; display: block; }
+.ledger tr.total td { border-bottom: 0; font-weight: 600; }
+.ledger tr.total.bug td { color: var(--bug); }
+.ledger tr.total.ok td { color: var(--ok); }
+
+/* Changes by file */
+.files { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.file { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--line); min-width: 0; }
+.file:last-child { border-bottom: 0; }
+.file .path { font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere; }
+.file ul { font-size: 13.5px; gap: 2px; padding-left: 18px; }
+.check { list-style: none; padding: 0; gap: 6px; font-size: 14px; }
+.check li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; }
+.check li::before { content: ""; width: 12px; height: 12px; margin-top: 5px; border: 1.5px solid var(--muted); border-radius: 3px; }
+
+/* Buttons + status */
+.btn { font: 600 13px var(--font-sans); border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--brand); }
+.btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.sync { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.sync[data-s="live"] { color: var(--ok); }
+.sync[data-s="warn"] { color: var(--warn); }
+.saved { font-size: 12px; color: var(--muted); min-height: 1em; }
+.cards .row:has(.by:empty):has(.saved:empty) { display: none; }
+
+/* Question + challenge cards */
+.qhead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.progress { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cards { display: flex; flex-direction: column; gap: 16px; }
+.q, .challenge { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.q.done { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.q-top { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.qid { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--brand); background: var(--brand-soft); border-radius: 5px; padding: 2px 7px; flex: none; margin-top: 2px; }
+.q-title { flex: 1 1 260px; min-width: 0; font: 600 15.5px/1.4 var(--font-sans); margin: 0; color: var(--fg); text-transform: none; letter-spacing: 0; }
+.state { font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 2px 9px; flex: none; background: var(--bg); color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+.q.done .state { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.ctx { font-size: 13.5px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+.opts { display: flex; flex-direction: column; gap: 8px; }
+.opt { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
+.opt:hover { border-color: var(--brand); }
+.opt:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.opt input { margin: 3px 0 0; accent-color: var(--brand); }
+.opt-label { font-weight: 600; font-size: 14px; }
+.opt-desc { font-size: 13px; color: var(--muted); display: block; margin-top: 2px; }
+.rec { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ok); margin-left: 6px; }
+textarea, select { width: 100%; font: inherit; font-size: 14px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+textarea { min-height: 56px; resize: vertical; }
+select { width: auto; padding: 4px 8px; font-size: 13px; }
+textarea:focus-visible, select:focus-visible, .opt input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.by { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.by .who { font: 600 11px var(--font-mono); letter-spacing: .04em; text-transform: uppercase; border-radius: 4px; padding: 1px 6px; }
+.by .who[data-src="page"] { color: var(--brand); background: var(--brand-soft); }
+.by .who[data-src="agent"] { color: var(--focus); background: var(--focus-soft); }
+.agent-note { border-left: 3px solid var(--focus); background: var(--focus-soft); padding: 8px 12px; border-radius: 0 6px 6px 0; font-size: 13.5px; display: flex; flex-direction: column; gap: 4px; }
+.agent-note .k { font: 600 11px var(--font-mono); letter-spacing: .05em; text-transform: uppercase; color: var(--focus); }
+.decided { border-left: 3px solid var(--ok); background: var(--ok-soft); padding: 8px 12px; border-radius: 0 6px 6px 0; font-size: 13.5px; }
+.decided .k { font: 600 11px var(--font-mono); letter-spacing: .05em; text-transform: uppercase; color: var(--ok); margin-right: 6px; }
+.challenge .cid { font-family: var(--font-mono); font-size: 13px; color: var(--brand); font-weight: 600; margin-top: 2px; }
+.challenge .resp { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.challenge .resp-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+.challenge[data-status="accepted"], .challenge[data-status="changed"] { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.challenge[data-status="rejected"] { opacity: .85; }
+.pill { font-family: var(--font-mono); font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--bg); white-space: nowrap; }
+.pill[data-s="discussing"], .pill[data-s="in-progress"] { color: var(--new); border-color: var(--new); background: var(--new-soft); }
+.pill[data-s="accepted"], .pill[data-s="changed"], .pill[data-s="done"] { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); }
+.pill[data-s="blocked"] { color: var(--warn); border-color: var(--warn); background: var(--warn-soft); }
+.pill[data-s="review"] { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); }
+
+@media (prefers-reduced-motion: no-preference) { .opt, .btn { transition: border-color .12s, background-color .12s; } }
+@media (max-width: 720px) { .task-body { grid-template-columns: minmax(0, 1fr); } .live { border-left: 0; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; } }
+@media (max-width: 520px) { h1 { font-size: 27px; } .page { padding-inline: 16px; } .fold-body, .gist { padding-left: 0; } }
+
+/* ---------- plan-pilot additions ---------- */
+.intro { gap: 12px; }
+.code-block { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.code-block .loc { margin: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.code-block.bug pre { border-left: 3px solid var(--bug); }
+.code-block.pseudo pre { border-style: dashed; }
+.tag { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); background: var(--surface); }
+.tag-before { color: var(--muted); }
+.tag-after { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); }
+.tag-pseudo { color: var(--focus); border-color: var(--focus); background: var(--focus-soft); }
+pre .ln { display: block; padding-inline: 16px; margin-inline: -16px; min-height: 1.5em; }
+pre .ln-add { background: var(--ok-soft); box-shadow: inset 3px 0 var(--ok); }
+pre .ln-bug { background: var(--bug-soft); box-shadow: inset 3px 0 var(--bug); }
+pre .ln-focus { background: var(--focus-soft); box-shadow: inset 3px 0 var(--focus); }
+.pair { display: grid; gap: 10px; min-width: 0; }
+.callout.note { border-color: var(--new); background: var(--new-soft); }
+.callout.note h3 { color: var(--new); }
+.callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+.callout.warn h3 { color: var(--warn); }
+.callout p, .callout ul { max-width: none; }
+.html-block { min-width: 0; overflow-x: auto; }
+.challenge .arg { display: flex; flex-direction: column; gap: 8px; }
+hr { border: none; border-top: 1px solid var(--line); width: 100%; margin: 4px 0; }
+blockquote { margin: 0; padding: 4px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+/* comments: select text in any [data-md] block, or click a chart node */
+[data-md].has-comment { position: relative; }
+.c-pin { position: absolute; right: -30px; top: 2px; width: 22px; height: 22px; border-radius: 50%; border: none; background: var(--focus); color: #fff; font: 600 11px/22px var(--font-mono); text-align: center; cursor: pointer; padding: 0; z-index: 2; }
+.fold-body .c-pin, .intro .c-pin { right: -26px; }
+@media (max-width: 960px) { .c-pin { right: 4px; top: 4px; } }
+svg [data-node].has-comment > :first-child { stroke: var(--focus) !important; stroke-width: 2.5px !important; }
+svg [data-node] { cursor: pointer; }
+.c-add { position: absolute; z-index: 20; font: 600 12px var(--font-sans); background: var(--fg); color: var(--bg); border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.c-pop { position: absolute; z-index: 21; width: min(360px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+.c-pop .c-ref, .c-item .c-ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.c-pop blockquote, .c-item blockquote { font-size: 13px; max-height: 6em; overflow: auto; }
+.c-pop textarea { min-height: 70px; }
+.c-pop .row, .c-item .row { gap: 8px; justify-content: flex-end; }
+.c-fab { position: fixed; right: 16px; bottom: 16px; z-index: 15; }
+.c-fab .count:not(:empty) { margin-left: 6px; background: var(--focus); color: #fff; border-radius: 999px; padding: 0 7px; font-size: 11px; }
+.c-drawer { position: fixed; right: 0; top: 0; bottom: 0; width: min(420px, 100vw); z-index: 30; background: var(--bg); border-left: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; box-shadow: -6px 0 24px rgba(0,0,0,.12); }
+.c-drawer header { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.c-item { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.c-item[data-status="resolved"] { opacity: .65; }
+.c-item .c-reply { border-left: 3px solid var(--ok); padding-left: 10px; color: var(--fg); }
+.c-item .c-reply .k { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ok); }
+.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { from { box-shadow: 0 0 0 4px var(--focus-soft); } to { box-shadow: 0 0 0 4px transparent; } }
+</style>
+</head><body>
+<!-- generated from plan.md by l3-plan-render; edit the .md, not this file -->
+<div class="page">
+<header class="top">
+<span class="eyebrow" data-md="5-5">shop-api · SHOP-88 · 2026-11-24</span><h1 data-md="6-6">Add a saved-carts endpoint so shoppers can park a cart and restore it on any device</h1><p class="summary" data-md="7-7">New <code>POST /carts/{id}/save</code> and <code>GET /saved-carts</code> on shop-api, backed by a new <code>saved_carts</code> table. Prices re-check on restore. Decide how long saved carts live.</p><div class="chips" data-md="8-8"><span class="chip key">shop-api</span><span class="chip">new endpoint</span><span class="chip">1 table</span><span class="chip">migration</span></div>
+<nav class="tabs" role="tablist" aria-label="Sections">
+<button type="button" role="tab" id="tab-plan" aria-controls="plan" aria-selected="true" data-md="11-11">Plan</button>
+<button type="button" role="tab" id="tab-questions" aria-controls="questions" aria-selected="false" tabindex=-1 data-md="119-119">Open questions<span class="count"></span></button>
+<button type="button" role="tab" id="tab-testing" aria-controls="testing" aria-selected="false" tabindex=-1 data-md="128-128">Testing</button>
+<button type="button" role="tab" id="tab-challenges" aria-controls="challenges" aria-selected="false" tabindex=-1 data-md="139-139">Challenging the design<span class="count"></span></button>
+</nav>
+</header>
+<div class="panel" id="plan" role="tabpanel" aria-labelledby="tab-plan">
+<div class="panel-tools"><button type="button" class="btn" data-fold-all>Expand all</button></div>
+<section id="p-context" data-md="13-20"><details class="fold"><summary><h2 data-md="13-13">Context</h2><p class="gist" data-md="14-14">Carts live in Redis for 24 hours and are tied to one session, so a shopper who switches devices starts over.</p></summary>
+<div class="fold-body">
+<div class="code-block" data-md="16-20"><div class="loc">services/shop/cart/store.go:40</div><pre><code class="language-go"><span class="ln" data-md="17-17">func (s *Store) Put(ctx context.Context, c Cart) error {</span><span class="ln" data-md="18-18">	return s.redis.Set(ctx, &quot;cart:&quot;+c.SessionID, c.JSON(), 24*time.Hour).Err()</span><span class="ln" data-md="19-19">}</span></code></pre></div>
+</div></details></section>
+<section id="p-flow" data-md="22-55"><details class="fold" open><summary><h2 data-md="22-22">Flow</h2><p class="gist" data-md="23-23">Save copies the Redis cart into Postgres under the account; restore re-prices each line before it becomes the live cart.</p></summary>
+<div class="fold-body">
+<div class="fig fig-flow" data-md="25-55">
+<figure class="flow-figure">
+<div class="flow-scroll">
+<svg class="flow flow-main" viewBox="0 0 891 548" style="min-width:668px;max-width:980px" role="img" aria-labelledby="saved-carts-flow-title saved-carts-flow-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="saved-carts-flow-title">Saved carts</title>
+<desc id="saved-carts-flow-desc"></desc>
+<defs>
+<marker id="saved-carts-flow-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="ah" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<g class="ct ct-client">
+<rect class="ct-box" x="16" y="16" width="148" height="516" rx="10"/>
+<text class="ct-label" x="32" y="41">WEB</text>
+</g>
+<g class="ct ct-service">
+<rect class="ct-box" x="260" y="16" width="346.4" height="516" rx="10"/>
+<text class="ct-label" x="276" y="41">SHOP-API</text>
+<text class="ct-tag" x="590.4" y="41" text-anchor="end">Go · ECS</text>
+</g>
+<g class="ct ct-vendor">
+<rect class="ct-box" x="702.4" y="16" width="172" height="516" rx="10"/>
+<text class="ct-label" x="718.4" y="41">PRICING</text>
+<text class="ct-tag" x="858.4" y="41" text-anchor="end">external</text>
+</g>
+<path class="ed" data-edge="save&gt;owned" data-md="47-47" d="M378 92 V144" marker-end="url(#saved-carts-flow-ah)"/>
+<path class="ed" data-edge="owned&gt;insert" data-md="48-48" d="M378 200 V252" marker-end="url(#saved-carts-flow-ah)"/>
+<path class="ed" data-edge="owned&gt;e403" data-md="49-49" d="M450 172 H490.4" marker-end="url(#saved-carts-flow-ah)"/>
+<path class="ed" data-edge="insert&gt;restore" data-md="50-50" d="M378 320 V372" marker-end="url(#saved-carts-flow-ah)"/>
+<path class="ed" data-edge="click&gt;save" data-md="46-46" d="M144 284 H212 V74 H280" marker-end="url(#saved-carts-flow-ah)"/>
+<path class="ed" data-edge="restore&gt;quote" data-md="51-51" d="M444 398 H654.4 V284 H722.4" marker-end="url(#saved-carts-flow-ah)"/>
+<path class="ed" data-edge="quote&gt;ok" data-md="52-52" d="M722.4 284 H654.4 V494 H426" marker-end="url(#saved-carts-flow-ah)"/>
+<g class="nd nd-start" data-node="click" data-md="36-36">
+<rect class="nd-shape" x="36" y="266" width="108" height="36" rx="18"/>
+<text class="nd-name" x="90" y="288" text-anchor="middle">Save cart</text>
+</g>
+<g class="nd nd-start st-new" data-node="save" data-md="37-37">
+<rect class="nd-shape" x="280" y="56" width="196" height="36" rx="18"/>
+<text class="nd-name" x="378" y="78" text-anchor="middle">POST /carts/{id}/save</text>
+</g>
+<g class="nd nd-decision st-new" data-node="owned" data-md="38-38">
+<polygon class="nd-shape" points="378,144 450,172 378,200 306,172"/>
+<text class="nd-name" x="378" y="176" text-anchor="middle">Cart owned?</text>
+</g>
+<g class="nd nd-stop st-new" data-node="e403" data-md="39-39">
+<polygon class="nd-shape" points="504.4,154 572.4,154 586.4,172 572.4,190 504.4,190 490.4,172"/>
+<text class="nd-name" x="538.4" y="176" text-anchor="middle">403</text>
+</g>
+<g class="nd nd-store st-new" data-node="insert" data-md="40-40">
+<path class="nd-shape" d="M312 259 A66 7 0 0 1 444 259 V313 A66 7 0 0 1 312 313 Z"/><path class="nd-shape nd-rim" d="M312 259 A66 7 0 0 0 444 259"/>
+<text class="nd-name" x="378" y="285.5" text-anchor="middle">Postgres</text>
+<text class="nd-sub" x="378" y="301.5" text-anchor="middle">saved_carts</text>
+</g>
+<g class="nd nd-action st-new" data-node="restore" data-md="41-41">
+<rect class="nd-shape" x="312" y="372" width="132" height="52" rx="4"/>
+<text class="nd-name" x="378" y="394" text-anchor="middle">restore()</text>
+<text class="nd-sub" x="378" y="410" text-anchor="middle">re-price lines</text>
+</g>
+<g class="nd nd-action" data-node="quote" data-md="42-42">
+<rect class="nd-shape" x="722.4" y="266" width="132" height="36" rx="4"/>
+<text class="nd-name" x="788.4" y="288" text-anchor="middle">/quote</text>
+</g>
+<g class="nd nd-stop oc-ok" data-node="ok" data-md="43-43">
+<polygon class="nd-shape" points="344,476 412,476 426,494 412,512 344,512 330,494"/>
+<text class="nd-name" x="378" y="498" text-anchor="middle">201</text>
+</g>
+<text class="ed-label" x="385" y="215" text-anchor="start">yes</text>
+<text class="ed-label" x="470.2" y="165" text-anchor="middle">no</text>
+<text class="ed-label" x="178" y="277" text-anchor="middle">HTTPS</text>
+<text class="ed-label" x="549.2" y="391" text-anchor="middle">lines</text>
+<text class="ed-label" x="540.2" y="487" text-anchor="middle">prices</text>
+</svg>
+</div>
+<ul class="flow-legend">
+<li><svg class="flow flow-key" viewBox="0 0 30 18" aria-hidden="true"><rect class="nd-shape" x="1" y="2" width="28" height="14" rx="7"/></svg>entry</li>
+<li><svg class="flow flow-key" viewBox="0 0 30 18" aria-hidden="true"><rect class="nd-shape" x="1" y="2" width="28" height="14" rx="4"/></svg>action</li>
+<li><svg class="flow flow-key" viewBox="0 0 30 18" aria-hidden="true"><polygon class="nd-shape" points="15,1 25,9 15,17 5,9"/></svg>decision</li>
+<li><svg class="flow flow-key" viewBox="0 0 30 18" aria-hidden="true"><polygon class="nd-shape" points="15,2 15,2 29,9 15,16 15,16 1,9"/></svg>stop / return / error</li>
+<li><svg class="flow flow-key" viewBox="0 0 30 18" aria-hidden="true"><path class="nd-shape" d="M7 7 A8 7 0 0 1 23 7 V11 A8 7 0 0 1 7 11 Z"/><path class="nd-shape nd-rim" d="M7 7 A8 7 0 0 0 23 7"/></svg>data store</li>
+<li><svg class="flow flow-key" viewBox="0 0 30 18" aria-hidden="true"><path class="ed ed-new" d="M0 9 H12"/><g class="nd st-new"><rect class="nd-shape" x="15" y="3" width="12" height="12" rx="2"/></g></svg>new / proposed</li>
+<li><svg class="flow flow-key" viewBox="0 0 30 18" aria-hidden="true"><path class="ed" d="M0 9 H12"/><g class="nd oc-ok"><rect class="nd-shape" x="15" y="3" width="12" height="12" rx="2"/></g></svg>success</li>
+</ul>
+</figure>
+<p class="cap" data-md="29-29">Everything blue is new. Restore re-prices before writing the live cart.</p></div>
+</div></details></section>
+<section id="p-schema" data-md="57-72"><details class="fold"><summary><h2 data-md="57-57">Schema</h2><p class="gist" data-md="58-58">One new table, one row per saved cart, lines as JSON.</p></summary>
+<div class="fold-body">
+<div class="fig fig-erd" data-md="60-72">
+<figure class="erd-figure">
+<div class="erd-scroll">
+<svg class="erd erd-main" viewBox="0 0 590 158" style="min-width:472px" role="img" aria-labelledby="saved-carts-erd-title saved-carts-erd-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="saved-carts-erd-title">Saved carts schema</title>
+<desc id="saved-carts-erd-desc">saved_carts belongs to accounts; many saved carts per account.</desc>
+<path class="link link-new" d="M350 83 H240"/>
+<path class="mk mk-new" d="M350 90 L337 83 L350 76"/>
+<circle class="mk mk-new" cx="328" cy="83" r="4"/>
+<line class="mk mk-new" x1="249" y1="76" x2="249" y2="90"/>
+<line class="mk mk-new" x1="255" y1="76" x2="255" y2="90"/>
+<g class="tb tb-anchor" data-node="accounts" data-md="66-66">
+<rect class="tb-box" x="20" y="42" width="220" height="74" rx="6"/>
+<path class="tb-head" d="M20 72 V48 Q20 42 26 42 H234 Q240 42 240 48 V72 Z"/>
+<line class="tb-rule" x1="20" y1="72" x2="240" y2="72"/>
+<text class="tb-title" x="32" y="62">accounts</text>
+<g data-node="accounts.id" data-md="66-66">
+<text class="col" x="32" y="87">id</text>
+<text class="note" x="228" y="87" text-anchor="end">PK</text>
+</g>
+<g data-node="accounts.email" data-md="66-66">
+<text class="col" x="32" y="109">email</text>
+</g>
+</g>
+<g class="tb tb-new" data-node="saved_carts" data-md="67-67">
+<rect class="tb-box" x="350" y="20" width="220" height="118" rx="6"/>
+<path class="tb-head" d="M350 50 V26 Q350 20 356 20 H564 Q570 20 570 26 V50 Z"/>
+<line class="tb-rule" x1="350" y1="50" x2="570" y2="50"/>
+<text class="tb-title" x="362" y="40">saved_carts</text>
+<text class="tb-tag" x="558" y="40" text-anchor="end">NEW</text>
+<g data-node="saved_carts.id" data-md="68-68">
+<text class="col" x="362" y="65">id</text>
+<text class="note" x="558" y="65" text-anchor="end">PK</text>
+</g>
+<g data-node="saved_carts.account_id" data-md="68-68">
+<text class="col" x="362" y="87">account_id</text>
+<text class="note" x="558" y="87" text-anchor="end">FK</text>
+</g>
+<g data-node="saved_carts.lines" data-md="68-68">
+<text class="col" x="362" y="109">lines</text>
+<text class="note" x="558" y="109" text-anchor="end">jsonb</text>
+</g>
+<g data-node="saved_carts.expires_at" data-md="68-68">
+<text class="col" x="362" y="131">expires_at</text>
+<text class="note" x="558" y="131" text-anchor="end">Q1</text>
+</g>
+</g>
+</svg>
+</div>
+<ul class="erd-legend">
+<li><svg class="erd erd-key" viewBox="0 0 36 16" aria-hidden="true"><path class="link link-new" d="M2 8 H34"/></svg>new</li>
+<li><svg class="erd erd-key" viewBox="0 0 36 16" aria-hidden="true"><path class="link" d="M0 8 H34"/><line class="mk" x1="25" y1="15" x2="25" y2="1"/><line class="mk" x1="19" y1="15" x2="19" y2="1"/><line class="key-edge" x1="35" y1="1" x2="35" y2="15"/></svg>exactly one</li>
+<li><svg class="erd erd-key" viewBox="0 0 36 16" aria-hidden="true"><path class="link" d="M0 8 H34"/><path class="mk" d="M34 15 L21 8 L34 1"/><circle class="mk" cx="12" cy="8" r="4"/><line class="key-edge" x1="35" y1="1" x2="35" y2="15"/></svg>zero or many</li>
+</ul>
+</figure>
+</div>
+</div></details></section>
+<section id="p-01" data-md="74-90"><details class="fold"><summary><h2 data-md="74-74"><span class="n">01</span>Migration</h2><p class="gist" data-md="75-75">Create <code>saved_carts</code> with an index on <code>account_id</code>.</p></summary>
+<div class="fold-body">
+<div class="files" data-md="77-80"><div class="file" data-md="78-79"><div class="path">migrations/0042_saved_carts.sql</div><ul><li data-md="79-79"><code>CREATE TABLE saved_carts (...)</code> + index on <code>account_id</code>.</li></ul></div></div>
+<div class="code-block" data-md="82-90"><div class="loc">migrations/0042_saved_carts.sql</div><pre><code class="language-sql"><span class="ln" data-md="83-83">CREATE TABLE saved_carts (</span><span class="ln" data-md="84-84">  id uuid PRIMARY KEY,</span><span class="ln" data-md="85-85">  account_id uuid NOT NULL REFERENCES accounts(id),</span><span class="ln" data-md="86-86">  lines jsonb NOT NULL,</span><span class="ln" data-md="87-87">  expires_at timestamptz NOT NULL</span><span class="ln" data-md="88-88">);</span><span class="ln" data-md="89-89">CREATE INDEX saved_carts_account ON saved_carts (account_id);</span></code></pre></div>
+</div></details></section>
+<section id="p-02" data-md="92-111"><details class="fold"><summary><h2 data-md="92-92"><span class="n">02</span>Save + restore handlers</h2><p class="gist" data-md="93-93">Two handlers; restore re-prices through the pricing service and drops lines that no longer exist.</p></summary>
+<div class="fold-body">
+<div class="files" data-md="95-99"><div class="file" data-md="96-98"><div class="path">services/shop/cart/saved.go</div><ul><li data-md="97-97"><code>Save(ctx, cartID)</code>: ownership check, insert row.</li><li data-md="98-98"><code>Restore(ctx, savedID)</code>: re-price, write the live cart.</li></ul></div></div>
+<div class="code-block pseudo" data-md="101-108"><div class="loc">services/shop/cart/saved.go<span class="tag tag-pseudo">pseudo · go</span></div><pre><code class="language-go"><span class="ln" data-md="102-102">func Restore(ctx, savedID) (Cart, error) {</span><span class="ln" data-md="103-103">	saved := db.Get(savedID)            // 404 when missing or expired</span><span class="ln" data-md="104-104">	quotes := pricing.Quote(saved.Lines)</span><span class="ln" data-md="105-105">	lines := keep(saved.Lines, quotes)  // drop discontinued SKUs, take new prices</span><span class="ln" data-md="106-106">	return store.Put(Cart{Lines: lines})</span><span class="ln" data-md="107-107">}</span></code></pre></div>
+<div class="callout note" data-md="110-111"><h3>Price drift</h3><p>Restored carts always show today's price; the saved price is never honoured.</p></div>
+</div></details></section>
+<section id="p-verify" data-md="113-118"><details class="fold"><summary><h2 data-md="113-113">Verify</h2><p class="gist" data-md="114-114">Integration tests plus a manual cross-device check.</p></summary>
+<div class="fold-body">
+<ul data-md="116-118" class="check">
+<li data-md="116-116">Integration suite T1–T3 green.</li>
+<li data-md="117-118">Save on desktop, restore on phone.</li>
+</ul>
+
+</div></details></section>
+</div>
+<div class="panel" id="questions" role="tabpanel" aria-labelledby="tab-questions" hidden>
+<div class="qhead"><span class="progress" id="q-progress"></span></div><p class="sync" id="q-sync">Connecting to saved answers…</p>
+<section class="intro">
+<div class="cards" data-md="121-126"><article class="q" data-q="q1" id="q1" data-md="121-126">
+<div class="q-top"><span class="qid">Q1</span><h3 class="q-title" data-md="122-122">How long should a saved cart live?</h3><span class="state">Open</span></div>
+<div class="ctx" data-md="123-123"><p>Longer helps returning shoppers; shorter keeps the table small and prices fresher.</p></div>
+<div class="opts" role="radiogroup" aria-label="Q1 options">
+<label class="opt" for="q1-d30" data-md="124-124"><input type="radio" name="q1" id="q1-d30" value="d30"><span><span class="opt-label">30 days</span><span class=rec>recommended</span><span class=opt-desc>matches the wishlist</span></span></label>
+<label class="opt" for="q1-d90" data-md="125-125"><input type="radio" name="q1" id="q1-d90" value="d90"><span><span class="opt-label">90 days</span><span class=opt-desc>fewer lost carts, bigger table</span></span></label>
+</div>
+<textarea id="q1-note" placeholder="Answer or note" aria-label="Answer to Q1"></textarea>
+<div class="row"><div class="by"></div><span class="saved"></span></div></article></div>
+</section>
+<div class="row"><button class="btn" id="q-copy" type="button">Copy answers as text</button><span class="saved" id="q-copy-msg"></span></div><pre id="q-copy-text" hidden></pre>
+</div>
+<div class="panel" id="testing" role="tabpanel" aria-labelledby="tab-testing" hidden>
+<div class="panel-tools"><button type="button" class="btn" data-fold-all>Expand all</button></div>
+<section id="t-cases" data-md="130-137"><details class="fold"><summary><h2 data-md="130-130">Tests</h2><p class="gist" data-md="131-131">Three integration cases against a local Postgres and a mocked pricing service.</p></summary>
+<div class="fold-body">
+<div class="scroll" data-md="133-137"><table data-md="133-137">
+<thead data-md="133-133">
+<tr data-md="133-133">
+<th>Test</th>
+<th>Covers</th>
+<th>Call</th>
+<th>Expect</th>
+</tr>
+</thead>
+<tbody data-md="135-137">
+<tr data-md="135-135">
+<td>T1</td>
+<td>save own cart</td>
+<td><code>POST /carts/c1/save</code></td>
+<td>201, one row</td>
+</tr>
+<tr data-md="136-136">
+<td>T2</td>
+<td>save someone else's cart</td>
+<td><code>POST /carts/c2/save</code></td>
+<td>403</td>
+</tr>
+<tr data-md="137-137">
+<td>T3</td>
+<td>restore with a dropped SKU</td>
+<td><code>GET /saved-carts/s1/restore</code></td>
+<td>200, line removed</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div></details></section>
+</div>
+<div class="panel" id="challenges" role="tabpanel" aria-labelledby="tab-challenges" hidden>
+<p class="sync" id="c-sync">Connecting to saved replies…</p>
+<section class="intro">
+<div class="cards" data-md="141-144"><article class="challenge" data-c="c1" id="c1" data-status="open" data-md="141-144"><div class="q-top"><span class="cid">C1</span><h3 class="q-title" data-md="142-142">Storing lines as JSON blocks reporting on saved carts</h3><span class="pill" data-s="open">Open</span></div><div class="arg" data-md="143-143"><p>Analytics will want per-SKU counts; <code>jsonb</code> makes that a scan. A <code>saved_cart_lines</code> table costs one more join but keeps SKUs queryable.</p>
+</div><div class="resp"><div class="resp-head"><h3>Response</h3><label class="muted" for="c1-status">Status <select id="c1-status"><option value="open">Open</option><option value="discussing">Discussing</option><option value="accepted">Accepted</option><option value="changed">Plan changed</option><option value="rejected">Rejected</option></select></label></div><textarea id="c1-note" placeholder="Your reply" aria-label="Reply to C1"></textarea><div class="row"><div class="by"></div><span class="saved"></span></div></div></article></div>
+</section>
+</div>
+</div>
+<script type="application/json" id="plan-state">{}</script>
+<script id="plan-js">
+// claude-plan-pilot page runtime (l3-plan-render). Tabs + folds, then three stored parts:
+//   answers/{qid}      Q/A boxes        page writes {choice, note, source:"page", updatedAt}
+//   challenges/{cid}   Challenge cards  page writes {status, note, source:"page", updatedAt}
+//   comments/{id}      Comment layer    page writes {md, node, quote, text, status, createdAt}
+// Agents write the same rows (review, applied, resolution, reply) into X.state.json.
+// Baseline = the state baked in at build (#plan-state). Served by serve.py, reads poll
+// /__plan/state and writes POST /__plan/<coll>/<id>; the page reloads when the .md is rebuilt.
+// As a claude.ai artifact with the db capability, the same calls go to window.claude db.
+// Opened as file://, edits stay in this browser and the copy buttons are the way out.
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const has = (v) => typeof v === 'string' && v.trim() !== '';
+  const meta = (n) => { const m = document.querySelector(`meta[name="${n}"]`); return m ? m.content : ''; };
+  const MD = meta('plan-md') || 'plan.md';
+  const BUILD = meta('plan-build');
+  const PAGE = encodeURIComponent(location.pathname);
+  const when = (iso) => {
+    const d = new Date(iso);
+    if (!has(iso) || isNaN(d)) return null;
+    const m = Math.round((Date.now() - d) / 60000);
+    const ago = m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+    return { ago, full: d.toLocaleString() };
+  };
+  let baked = {};
+  try { baked = JSON.parse(($('#plan-state') || {}).textContent || '{}') || {}; } catch (e) { baked = {}; }
+  const draftKey = 'plan-pilot:' + location.pathname + ':' + MD;
+  const loadDraft = () => { try { return JSON.parse(localStorage.getItem(draftKey) || '{}'); } catch (e) { return {}; } };
+  const saveDraft = (d) => { try { localStorage.setItem(draftKey, JSON.stringify(d)); } catch (e) { /* storage blocked */ } };
+  const copyText = (txt, msgEl, okText, fallbackPre) => {
+    const fallback = () => {
+      if (fallbackPre) { fallbackPre.hidden = false; fallbackPre.textContent = txt; const rg = document.createRange(); rg.selectNodeContents(fallbackPre); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg); }
+      if (msgEl) msgEl.textContent = 'Copy was blocked.' + (fallbackPre ? ' The text is selected below.' : '');
+    };
+    try { navigator.clipboard.writeText(txt).then(() => { if (msgEl) msgEl.textContent = okText; }, fallback); } catch (e) { fallback(); }
+  };
+
+  // ---------- tabs + folds ----------
+  const tabs = $$('.tabs [role="tab"]');
+  const show = (id, focus) => {
+    for (const t of tabs) {
+      const on = t.getAttribute('aria-controls') === id;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+      const p = document.getElementById(t.getAttribute('aria-controls'));
+      if (p) p.hidden = !on;
+      if (on && focus) t.focus();
+    }
+  };
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => {
+      const id = t.getAttribute('aria-controls');
+      show(id);
+      try { history.replaceState(null, '', '#' + id); } catch (e) { /* sandbox may refuse */ }
+    });
+    t.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+      show(n.getAttribute('aria-controls'), true);
+    });
+  });
+  const reveal = (el) => {
+    const panel = el.closest('.panel');
+    if (panel && tabs.length) show(panel.id);
+    const own = el.matches('details') ? el : el.querySelector(':scope > details');
+    if (own) own.open = true;
+    for (let d = el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
+    return panel;
+  };
+  const openHash = () => {
+    const id = decodeURIComponent(location.hash.slice(1));
+    const el = id && document.getElementById(id);
+    if (!el) return;
+    const panel = reveal(el);
+    const go = () => { if (el === panel) window.scrollTo(0, 0); else el.scrollIntoView({ block: 'start' }); };
+    requestAnimationFrame(go);
+    if (document.readyState !== 'complete') window.addEventListener('load', () => setTimeout(go, 0), { once: true });
+  };
+  openHash();
+  window.addEventListener('hashchange', openHash);
+  for (const btn of $$('[data-fold-all]')) {
+    btn.addEventListener('click', () => {
+      const folds = $$('details.fold', btn.closest('.panel'));
+      const open = folds.some((f) => !f.open);
+      folds.forEach((f) => { f.open = open; });
+      btn.textContent = open ? 'Collapse all' : 'Expand all';
+    });
+  }
+
+  // ---------- store ----------
+  // serve.py: GET /__plan/state?page=… -> {answers, challenges, comments, mtime, build, poll, file}
+  function localStore(first) {
+    const subs = {};
+    let last = first, mtime = first.mtime, timer = null;
+    const snap = (c) => ({ metadata: { fromCache: false }, docs: Object.entries(last[c] || {}).map(([id, v]) => ({ id, data: () => v })) });
+    const fire = () => { for (const [c, list] of Object.entries(subs)) for (const s of list) s.cb(snap(c)); };
+    const fail = (e) => { for (const list of Object.values(subs)) for (const s of list) if (s.err) s.err(e); };
+    async function poll() {
+      try {
+        const r = await fetch('/__plan/state?page=' + PAGE, { cache: 'no-store' });
+        if (!r.ok) throw { code: 'unavailable' };
+        const d = await r.json();
+        if (d.build && BUILD && d.build !== BUILD) { location.reload(); return; }
+        if (d.mtime !== mtime) { mtime = d.mtime; last = d; fire(); }
+        timer = setTimeout(poll, d.poll || 2500);
+      } catch (e) { fail({ code: 'server_stopped' }); timer = setTimeout(poll, 5000); }
+    }
+    const coll = (c) => ({
+      onSnapshot(cb, err) { (subs[c] = subs[c] || []).push({ cb, err }); setTimeout(() => cb(snap(c)), 0); if (!timer) timer = setTimeout(poll, 0); return () => {}; },
+    });
+    async function write(path, data) {
+      const r = await fetch('/__plan/' + path + '?page=' + PAGE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      if (!r.ok) throw { code: r.status === 404 ? 'invalid_argument' : 'unavailable' };
+    }
+    return { local: true, file: first.file, collection: coll, doc: (path) => ({ set: (d) => write(path, d), update: (d) => write(path, d) }) };
+  }
+  const dbReady = (async () => {
+    try {
+      const db = window.claude && window.claude.use ? await window.claude.use('db') : null;
+      if (db) return db;
+    } catch (e) { /* fall through to serve.py */ }
+    if (!/^https?:$/.test(location.protocol)) return null;
+    try {
+      const r = await fetch('/__plan/state?page=' + PAGE, { cache: 'no-store' });
+      const d = r.ok ? await r.json() : null;
+      return d && d.answers ? localStore(d) : null;
+    } catch (e) { return null; }
+  })();
+  const setSync = (el, s, text) => { if (el) { el.dataset.s = s; el.textContent = text; } };
+
+  function makeWriter(db, collection, exists, onMsg, stamp) {
+    const timers = {}, inflight = {}, pending = {};
+    async function flush(id) {
+      if (inflight[id]) { timers[id] = setTimeout(() => flush(id), 400); return; }
+      const data = pending[id]; delete pending[id];
+      if (!data) return;
+      inflight[id] = true; onMsg(id, 'Saving…');
+      try {
+        const ref = db.doc(`${collection}/${id}`);
+        if (exists.has(id)) await ref.update(data); else { await ref.set(data); exists.add(id); }
+        onMsg(id, 'Saved');
+      } catch (e) {
+        onMsg(id, e && e.code === 'invalid_argument' ? "You can't save on this page." : "Didn't save. Try again in a moment.");
+      } finally { inflight[id] = false; }
+    }
+    return (id, data, delay) => {
+      pending[id] = { ...(pending[id] || {}), ...data, ...(stamp ? { source: 'page', agent: '', updatedAt: new Date().toISOString() } : {}) };
+      clearTimeout(timers[id]);
+      timers[id] = setTimeout(() => flush(id), delay);
+      return () => inflight[id] || (!!timers[id] && !!pending[id]);
+    };
+  }
+  function byline(el, row) {
+    if (!el) return;
+    el.replaceChildren();
+    if (!row || !has(row.updatedAt)) return;
+    const who = document.createElement('span');
+    who.className = 'who';
+    who.dataset.src = row.source === 'agent' ? 'agent' : 'page';
+    who.textContent = row.source === 'agent' ? (has(row.agent) ? `agent · ${row.agent}` : 'agent') : 'on the page';
+    const t = when(row.updatedAt);
+    const ts = document.createElement('span');
+    ts.textContent = t ? t.ago : '';
+    ts.title = t ? t.full : '';
+    el.append(who, ts);
+  }
+  function agentNote(host, cls, label, text, stale) {
+    let box = $(cls === 'decided' ? ':scope > .decided' : `:scope > .agent-note.${cls}`, host);
+    if (!has(text)) { if (box) box.remove(); return; }
+    if (!box) { box = document.createElement('div'); box.className = cls === 'decided' ? 'decided' : 'agent-note ' + cls; const row = $(':scope > .row', host); host.insertBefore(box, row || null); }
+    box.replaceChildren();
+    const k = document.createElement('span'); k.className = 'k'; k.textContent = label + (stale ? ' · answer changed since' : '');
+    const p = document.createElement('span'); p.textContent = text;
+    box.append(k, p);
+  }
+  const countFor = (card) => { const p = card.closest('.panel'); return p ? $(`.tabs [aria-controls="${p.id}"] .count`) : null; };
+
+  // ---------- Q/A boxes ----------
+  const qCards = $$('.q[data-q]');
+  const qState = {};
+  const qProgress = $('#q-progress');
+  const qSync = $('#q-sync');
+  const qAnswered = (id) => { const s = qState[id] || {}; return has(s.choice) || has(s.note); };
+  function qApply(id) {
+    const s = qState[id] || {};
+    const card = $(`.q[data-q="${id}"]`);
+    const note = $('textarea', card);
+    if (note && document.activeElement !== note) note.value = s.note || '';
+    $$('input[type="radio"]', card).forEach((r) => { r.checked = r.value === s.choice; });
+    byline($('.by', card), s);
+    const stale = has(s.reviewedAt) && has(s.updatedAt) && s.updatedAt > s.reviewedAt && s.source !== 'agent';
+    agentNote(card, 'review', 'Agent review', s.review, stale);
+    agentNote(card, 'decided', 'Applied to plan', s.applied, false);
+    card.classList.toggle('done', qAnswered(id));
+    const st = $('.state', card);
+    if (st) st.textContent = qAnswered(id) ? 'Answered' : 'Open';
+    const n = qCards.filter((c) => qAnswered(c.dataset.q)).length;
+    if (qProgress) qProgress.textContent = `${n} of ${qCards.length} answered`;
+    const badge = countFor(card);
+    if (badge) badge.textContent = qCards.length - n ? String(qCards.length - n) : '';
+  }
+  const qDraft = loadDraft().answers || {};
+  let qWrite = null;
+  const qMsg = (id, text) => { const el = $(`.q[data-q="${id}"] .saved`); if (el) el.textContent = text; };
+  const qLocal = () => { const d = loadDraft(); d.answers = qState; saveDraft(d); };
+  for (const card of qCards) {
+    const id = card.dataset.q;
+    qState[id] = { ...((baked.answers || {})[id] || {}) };
+    if (qDraft[id] && (qDraft[id].updatedAt || '') > (qState[id].updatedAt || '')) Object.assign(qState[id], { choice: qDraft[id].choice, note: qDraft[id].note });
+    qApply(id);
+    $$('input[type="radio"]', card).forEach((r) => r.addEventListener('change', () => {
+      Object.assign(qState[id], { choice: r.value, source: 'page', agent: '', updatedAt: new Date().toISOString() });
+      qApply(id); qLocal();
+      if (qWrite) qWrite(id, { choice: r.value }, 0); else qMsg(id, 'Kept in this browser only.');
+    }));
+    const note = $('textarea', card);
+    if (note) note.addEventListener('input', () => {
+      Object.assign(qState[id], { note: note.value, source: 'page', agent: '', updatedAt: new Date().toISOString() });
+      qApply(id); qLocal();
+      if (qWrite) qWrite(id, { note: note.value }, 900); else qMsg(id, 'Kept in this browser only.');
+    });
+  }
+  function answersText() {
+    return qCards.map((card) => {
+      const id = card.dataset.q;
+      const s = qState[id] || {};
+      const title = ($('.q-title', card) || {}).textContent || '';
+      const r = s.choice && $(`input[value="${CSS.escape(s.choice)}"]`, card);
+      const label = r ? ($('.opt-label', r.closest('.opt')) || {}).textContent : '';
+      const parts = [label, (s.note || '').trim()].filter(Boolean);
+      return `${id.toUpperCase()} ${title.trim()}\n  ${parts.length ? parts.join(' — ') : '(open)'}`;
+    }).join('\n');
+  }
+  const qCopy = $('#q-copy');
+  if (qCopy) qCopy.addEventListener('click', () => copyText(answersText(), $('#q-copy-msg'), 'Copied. Paste it into chat.', $('#q-copy-text')));
+
+  // ---------- challenge cards ----------
+  const STATUS = { open: 'Open', discussing: 'Discussing', accepted: 'Accepted', changed: 'Plan changed', rejected: 'Rejected' };
+  const cCards = $$('.challenge[data-c]');
+  const cState = {};
+  const cSync = $('#c-sync');
+  function cApply(id) {
+    const s = cState[id] || {};
+    const card = $(`.challenge[data-c="${id}"]`);
+    const status = STATUS[s.status] ? s.status : 'open';
+    card.dataset.status = status;
+    const pill = $('.pill', card); if (pill) { pill.dataset.s = status; pill.textContent = STATUS[status]; }
+    const sel = $('select', card); if (sel && document.activeElement !== sel) sel.value = status;
+    const note = $('textarea', card); if (note && document.activeElement !== note) note.value = s.note || '';
+    byline($('.by', card), s);
+    agentNote($('.resp', card) || card, 'decided', 'Resolution', s.resolution, false);
+    const open = cCards.filter((c) => ['open', 'discussing'].includes((cState[c.dataset.c] || {}).status || 'open')).length;
+    const badge = countFor(card);
+    if (badge && !qCards.some((q) => countFor(q) === badge)) badge.textContent = open ? String(open) : '';
+  }
+  const cDraft = loadDraft().challenges || {};
+  let cWrite = null;
+  const cMsg = (id, text) => { const el = $(`.challenge[data-c="${id}"] .saved`); if (el) el.textContent = text; };
+  const cLocal = () => { const d = loadDraft(); d.challenges = cState; saveDraft(d); };
+  for (const card of cCards) {
+    const id = card.dataset.c;
+    cState[id] = { status: 'open', ...((baked.challenges || {})[id] || {}) };
+    if (cDraft[id] && (cDraft[id].updatedAt || '') > (cState[id].updatedAt || '')) Object.assign(cState[id], { status: cDraft[id].status, note: cDraft[id].note });
+    cApply(id);
+    const sel = $('select', card);
+    if (sel) sel.addEventListener('change', () => {
+      Object.assign(cState[id], { status: sel.value, source: 'page', agent: '', updatedAt: new Date().toISOString() });
+      cApply(id); cLocal();
+      if (cWrite) cWrite(id, { status: sel.value }, 0); else cMsg(id, 'Kept in this browser only.');
+    });
+    const note = $('textarea', card);
+    if (note) note.addEventListener('input', () => {
+      Object.assign(cState[id], { note: note.value, source: 'page', agent: '', updatedAt: new Date().toISOString() });
+      cApply(id); cLocal();
+      if (cWrite) cWrite(id, { note: note.value }, 900); else cMsg(id, 'Kept in this browser only.');
+    });
+  }
+
+  // ---------- comments ----------
+  // Row: {md: "42-47", node?, quote, text, status: "open"|"resolved", createdAt, reply?, agent?}
+  const comments = { ...(baked.comments || {}) };
+  for (const [id, c] of Object.entries(loadDraft().comments || {})) if (!comments[id]) comments[id] = c;
+  let cmWrite = null;
+  const page = $('.page');
+  const ref = (c) => `${MD}:${c.md}${has(c.node) ? ` (node ${c.node})` : ''}`;
+  const asText = (c) => `${ref(c)}\n${has(c.quote) ? c.quote.trim().split('\n').map((l) => '> ' + l).join('\n') + '\n' : ''}${(c.text || '').trim()}`;
+  const blockFor = (c) => (has(c.node) ? $(`[data-node="${CSS.escape(c.node)}"]`) : null) || $(`[data-md="${CSS.escape(c.md)}"]`);
+  const fab = document.createElement('button');
+  fab.type = 'button'; fab.className = 'btn c-fab'; fab.innerHTML = 'Comments<span class="count"></span>';
+  document.body.append(fab);
+  let drawer = null;
+  const openList = () => Object.entries(comments).filter(([, c]) => c.status !== 'resolved');
+  function paintComments() {
+    $$('.c-pin').forEach((p) => p.remove());
+    $$('.has-comment').forEach((el) => el.classList.remove('has-comment'));
+    const per = new Map();
+    for (const [id, c] of openList()) {
+      const el = blockFor(c);
+      if (!el) continue;
+      if (!per.has(el)) per.set(el, []);
+      per.get(el).push(id);
+    }
+    for (const [el, ids] of per) {
+      el.classList.add('has-comment');
+      if (el.closest('svg')) continue;
+      const pin = document.createElement('button');
+      pin.type = 'button'; pin.className = 'c-pin'; pin.textContent = String(ids.length);
+      pin.title = ids.length + ' open comment' + (ids.length > 1 ? 's' : '');
+      pin.addEventListener('click', (e) => { e.stopPropagation(); showDrawer(ids[0]); });
+      el.append(pin);
+    }
+    $('.count', fab).textContent = openList().length ? String(openList().length) : '';
+    if (drawer) renderDrawer();
+  }
+  function commentItem(id, c) {
+    const box = document.createElement('div');
+    box.className = 'c-item'; box.dataset.status = c.status || 'open'; box.dataset.id = id;
+    const r = document.createElement('a'); r.className = 'c-ref'; r.href = '#'; r.textContent = ref(c);
+    r.addEventListener('click', (e) => { e.preventDefault(); const el = blockFor(c); if (el) { reveal(el); el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1300); } });
+    box.append(r);
+    if (has(c.quote)) { const q = document.createElement('blockquote'); q.textContent = c.quote; box.append(q); }
+    const t = document.createElement('div'); t.textContent = c.text || ''; box.append(t);
+    if (has(c.reply)) {
+      const rp = document.createElement('div'); rp.className = 'c-reply';
+      const k = document.createElement('span'); k.className = 'k'; k.textContent = 'Reply' + (has(c.agent) ? ' · ' + c.agent : '');
+      const p = document.createElement('span'); p.textContent = c.reply;
+      rp.append(k, p); box.append(rp);
+    }
+    const row = document.createElement('div'); row.className = 'row';
+    const msg = document.createElement('span'); msg.className = 'saved';
+    const cp = document.createElement('button'); cp.type = 'button'; cp.className = 'btn'; cp.textContent = 'Copy';
+    cp.addEventListener('click', () => copyText(asText(c), msg, 'Copied.'));
+    const st = document.createElement('button'); st.type = 'button'; st.className = 'btn';
+    st.textContent = c.status === 'resolved' ? 'Reopen' : 'Resolve';
+    st.addEventListener('click', () => { saveComment(id, { status: c.status === 'resolved' ? 'open' : 'resolved' }); });
+    row.append(msg, cp, st); box.append(row);
+    return box;
+  }
+  function renderDrawer(focusId) {
+    drawer.replaceChildren();
+    const head = document.createElement('header');
+    const h = document.createElement('h2'); h.textContent = 'Comments';
+    const tools = document.createElement('div'); tools.className = 'row';
+    const msg = document.createElement('span'); msg.className = 'saved';
+    const all = document.createElement('button'); all.type = 'button'; all.className = 'btn'; all.textContent = 'Copy all open';
+    all.addEventListener('click', () => copyText(openList().map(([, c]) => asText(c)).join('\n\n'), msg, 'Copied. Paste it into chat.'));
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'btn'; x.textContent = 'Close';
+    x.addEventListener('click', () => { drawer.remove(); drawer = null; });
+    tools.append(msg, all, x); head.append(h, tools); drawer.append(head);
+    const sync = document.createElement('p'); sync.className = 'sync muted';
+    sync.textContent = cmWrite ? `Saved to ${MD.replace(/\.md$/, '')}.state.json; agents reply there.` : 'Not served: comments stay in this browser. Copy them into chat.';
+    drawer.append(sync);
+    const list = Object.entries(comments).sort(([, a], [, b]) => (a.status === 'resolved') - (b.status === 'resolved') || String(a.createdAt).localeCompare(String(b.createdAt)));
+    if (!list.length) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'No comments yet. Select text in any block, or click a chart node.'; drawer.append(p); }
+    for (const [id, c] of list) {
+      const item = commentItem(id, c);
+      drawer.append(item);
+      if (id === focusId) { item.classList.add('flash'); setTimeout(() => item.scrollIntoView({ block: 'nearest' }), 0); }
+    }
+  }
+  function showDrawer(focusId) {
+    if (!drawer) { drawer = document.createElement('aside'); drawer.className = 'c-drawer'; document.body.append(drawer); }
+    renderDrawer(focusId);
+  }
+  fab.addEventListener('click', () => (drawer ? (drawer.remove(), drawer = null) : showDrawer()));
+  const cmLocal = () => { const d = loadDraft(); d.comments = comments; saveDraft(d); };
+  function saveComment(id, data) {
+    comments[id] = { ...(comments[id] || {}), ...data };
+    cmLocal(); paintComments();
+    if (cmWrite) cmWrite(id, data, 0);
+  }
+
+  // selection / node click -> "Comment" button -> popover
+  let addBtn = null, pop = null;
+  const clearUI = () => { if (addBtn) addBtn.remove(); addBtn = null; };
+  const closePop = () => { if (pop) pop.remove(); pop = null; };
+  const anchorOf = (node) => {
+    const el = node && (node.nodeType === 1 ? node : node.parentElement);
+    if (!el || !page.contains(el) || el.closest('.q, .challenge, textarea, .c-pin, .tabs')) return null;
+    const n = el.closest('[data-node]');
+    if (n && n.dataset.md) return { el: n, md: n.dataset.md, node: n.dataset.node };
+    const b = el.closest('[data-md]');
+    return b ? { el: b, md: b.dataset.md } : null;
+  };
+  const placeAt = (box, x, y) => { box.style.left = Math.max(8, Math.min(x + scrollX, scrollX + innerWidth - box.offsetWidth - 8)) + 'px'; box.style.top = (y + scrollY + 8) + 'px'; };
+  function openPop(a, quote, x, y) {
+    closePop(); clearUI();
+    pop = document.createElement('div'); pop.className = 'c-pop';
+    const r = document.createElement('div'); r.className = 'c-ref'; r.textContent = ref({ md: a.md, node: a.node });
+    pop.append(r);
+    if (has(quote)) { const q = document.createElement('blockquote'); q.textContent = quote; pop.append(q); }
+    const ta = document.createElement('textarea'); ta.placeholder = 'Comment for Claude'; ta.setAttribute('aria-label', 'Comment');
+    const row = document.createElement('div'); row.className = 'row';
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = 'Cancel';
+    const save = document.createElement('button'); save.type = 'button'; save.className = 'btn'; save.textContent = 'Save comment';
+    cancel.addEventListener('click', closePop);
+    save.addEventListener('click', () => {
+      if (!has(ta.value)) { ta.focus(); return; }
+      const id = 'cm-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const row = { md: a.md, quote: quote || '', text: ta.value.trim(), status: 'open', createdAt: new Date().toISOString() };
+      if (a.node) row.node = a.node;
+      saveComment(id, row);
+      closePop();
+      showDrawer(id);
+    });
+    row.append(cancel, save);
+    pop.append(ta, row);
+    document.body.append(pop);
+    placeAt(pop, x, y);
+    ta.focus();
+  }
+  document.addEventListener('mouseup', (e) => {
+    if ((pop && pop.contains(e.target)) || (addBtn && addBtn.contains(e.target)) || (drawer && drawer.contains(e.target))) return;
+    setTimeout(() => {
+      clearUI();
+      const sel = getSelection();
+      const text = sel && !sel.isCollapsed ? sel.toString().trim() : '';
+      let a = null, x = e.clientX, y = e.clientY;
+      if (text) {
+        a = anchorOf(sel.anchorNode);
+        const b = anchorOf(sel.focusNode);
+        if (a && b && a.el !== b.el) {             // selection spans blocks: widen to the range
+          const [s1, e1] = a.md.split('-').map(Number), [s2, e2] = b.md.split('-').map(Number);
+          a = { el: a.el, md: `${Math.min(s1, s2)}-${Math.max(e1, e2)}` };
+        }
+        const rect = sel.getRangeAt(0).getBoundingClientRect();
+        x = rect.left; y = rect.bottom;
+      } else {
+        const n = e.target.closest && e.target.closest('svg [data-node]');
+        if (n && n.dataset.md) a = { el: n, md: n.dataset.md, node: n.dataset.node };
+      }
+      if (!a) return;
+      addBtn = document.createElement('button');
+      addBtn.type = 'button'; addBtn.className = 'c-add'; addBtn.textContent = 'Comment';
+      const quote = text;
+      addBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
+      addBtn.addEventListener('click', () => openPop(a, quote, x, y));
+      document.body.append(addBtn);
+      placeAt(addBtn, x, y);
+    }, 0);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePop(); clearUI(); } });
+  paintComments();
+
+  // ---------- connect ----------
+  (async () => {
+    const db = await dbReady;
+    if (!db) {
+      setSync(qSync, 'warn', 'Answers stay in this browser. Use "Copy answers as text" and paste them into chat.');
+      setSync(cSync, 'warn', 'Replies stay in this browser.');
+      return;
+    }
+    const syncs = [qSync, cSync].filter(Boolean);
+    const stale = setTimeout(() => syncs.forEach((el) => setSync(el, 'warn', "Can't reach saved data yet. Edits save once it connects.")), 10000);
+    const live = (el, text) => { clearTimeout(stale); setSync(el, 'live', text); };
+    const fail = (el) => (e) => {
+      clearTimeout(stale);
+      setSync(el, 'warn', e && e.code === 'server_stopped' ? 'serve.py stopped. Edits stay in this browser until it runs again.' : `Saved data stopped (${e && e.code}). Reload to reconnect.`);
+    };
+    const follow = (coll, cards, state, apply, msg, el, text, assign) => {
+      const exists = new Set();
+      const busy = {};
+      const w = makeWriter(db, coll, exists, msg, true);
+      db.collection(coll).onSnapshot((snap) => {
+        if (!snap.metadata.fromCache && el) live(el, text);
+        for (const d of snap.docs) {
+          exists.add(d.id);
+          if (!state[d.id] || (busy[d.id] && busy[d.id]())) continue;
+          state[d.id] = assign(state[d.id], d.data() || {});
+          apply(d.id);
+        }
+      }, fail(el));
+      return (id, data, delay) => { busy[id] = w(id, data, delay); };
+    };
+    if (qCards.length) qWrite = follow('answers', qCards, qState, (id) => { qApply(id); qLocal(); }, qMsg, qSync,
+      db.local ? `Answers save as you type to ${db.file}. Agent edits to that file show up here.` : 'Answers save as you type.',
+      (s, v) => ({ ...s, ...v, choice: v.choice || '', note: v.note || '' }));
+    if (cCards.length) cWrite = follow('challenges', cCards, cState, (id) => { cApply(id); cLocal(); }, cMsg, cSync,
+      db.local ? `Replies save as you type to ${db.file}.` : 'Replies save as you type.', (s, v) => ({ ...s, ...v }));
+    const exists = new Set(Object.keys(baked.comments || {}));
+    cmWrite = makeWriter(db, 'comments', exists, () => {}, false);
+    db.collection('comments').onSnapshot((snap) => {
+      for (const d of snap.docs) { exists.add(d.id); comments[d.id] = { ...(comments[d.id] || {}), ...(d.data() || {}) }; }
+      cmLocal(); paintComments();
+    }, () => {});
+  })();
+})();
+</script>
+</body></html>

@@ -1,0 +1,30 @@
+{
+  "id": "coverage",
+  "title": "Routing coverage",
+  "desc": "Illustrative schema covering a self-reference (persons referred by persons), a one-to-one profile stacked below its person, and a many-to-many between persons and roles through the person_roles join table.",
+  "layout": { "valign": "top" },
+  "tables": [
+    { "id": "persons", "name": "persons", "col": 0, "cols": [
+      { "name": "id", "note": "PK" },
+      { "name": "email", "note": "UNIQUE" },
+      { "name": "referred_by_person_id", "note": "nullable" },
+      "created_at" ] },
+    { "id": "profiles", "name": "person_profiles", "col": 0, "cols": [
+      { "name": "person_id", "note": "PK · FK" },
+      "display_name", "avatar_url" ] },
+    { "id": "person_roles", "name": "person_roles", "col": 1, "tag": "join", "cols": [
+      { "name": "person_id", "note": "PK" },
+      { "name": "role_id", "note": "PK" },
+      { "name": "granted_at", "note": "NEW", "state": "new" } ] },
+    { "id": "roles", "name": "roles", "col": 2, "variant": "changed", "tag": "CHANGED", "y": 42, "cols": [
+      { "name": "id", "note": "PK" },
+      { "name": "key", "note": "UNIQUE" },
+      { "name": "scope", "note": "renamed", "state": "changed" } ] }
+  ],
+  "relations": [
+    { "from": "persons.referred_by_person_id", "to": "persons.id", "card": "0..N:0..1", "route": "loop-left", "label": "referred by" },
+    { "from": "profiles.person_id", "to": "persons", "card": "0..1:1" },
+    { "from": "person_roles.person_id", "to": "persons.id", "card": "0..N:1" },
+    { "from": "person_roles.role_id", "to": "roles.id", "card": "0..N:1", "variant": "changed" }
+  ]
+}

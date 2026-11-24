@@ -1,0 +1,49 @@
+{
+  "id": "upgrade",
+  "title": "SubscriptionUpgrade.Execute",
+  "desc": {
+    "before": "Today: after the active and tier guards, a prorated plan change runs. When the billing period is over-extended the billing vendor returns a 422 and the upgrade fails as Proration.Invalid, or it returns 200 and leaves unearned credit. Then the collection guard, the trial branch and the billing-period reset.",
+    "after": "Proposed: out of trial, a change preview runs first. If the plan credit's proration rate is above 1 the change runs with credit full_amount, otherwise prorated as today. Both paths merge at the collection guard. The billing-period reset is the part being asked about."
+  },
+  "nodes": [
+    { "id": "entry", "shape": "start", "name": "POST /upgrade" },
+    { "id": "load", "name": "GetActiveSubscription" },
+    { "id": "active", "shape": "decision", "name": "Active?" },
+    { "id": "no_sub", "shape": "stop", "name": "ErrNoActiveSubscription" },
+    { "id": "tier", "shape": "decision", "name": "Higher tier?" },
+    { "id": "not_higher", "shape": "stop", "name": "ErrPlanNotHigher", "sub": "400" },
+    { "id": "trial", "shape": "decision", "name": "Trialing?", "only": "after" },
+    { "id": "preview", "name": "PreviewSubscriptionChange", "sub": "same request as the change", "only": "after" },
+    { "id": "overext", "shape": "decision", "name": "Over-extended?", "sub": "credit rate > 1", "only": "after" },
+    { "id": "full", "shape": "call", "name": "ChangeSubscriptionPlanRaw", "sub": "credit = full_amount", "only": "after" },
+    { "id": "change", "shape": "call", "name": "ChangeSubscriptionPlanRaw", "sub": "timeframe=now · prorated",
+      "state": { "before": "bug" } },
+    { "id": "invalid", "shape": "stop", "name": "Fail · Proration.Invalid", "sub": "member stuck",
+      "state": "bug", "only": "before" },
+    { "id": "collected", "shape": "decision", "name": "Collected?" },
+    { "id": "rollback", "shape": "stop", "name": "rollbackPlanChange" },
+    { "id": "reset", "name": "resetBillingPeriod", "sub": "next bill = now + term",
+      "state": { "after": "focus" } },
+    { "id": "ok", "shape": "stop", "name": "Upgrade.Success", "outcome": "ok" }
+  ],
+  "edges": [
+    { "from": "entry", "to": "load" },
+    { "from": "load", "to": "active" },
+    { "from": "active", "to": "tier", "label": "yes" },
+    { "from": "active", "to": "no_sub", "label": "no" },
+    { "from": "tier", "to": "change", "label": "yes", "only": "before" },
+    { "from": "tier", "to": "trial", "label": "yes", "only": "after" },
+    { "from": "tier", "to": "not_higher", "label": "no" },
+    { "from": "trial", "to": "preview", "label": "no", "state": "new" },
+    { "from": "trial", "to": "change", "label": "yes · $0 change", "state": "new" },
+    { "from": "preview", "to": "overext", "state": "new" },
+    { "from": "overext", "to": "change", "label": "no", "state": "new" },
+    { "from": "overext", "to": "full", "label": "yes", "state": "new" },
+    { "from": "full", "to": "collected", "state": "new" },
+    { "from": "change", "to": "collected", "label": { "before": "200 but may over-credit" }, "state": { "before": "warn" } },
+    { "from": "change", "to": "invalid", "label": "422 refundable < 0", "state": "bug", "only": "before" },
+    { "from": "collected", "to": "reset", "label": "yes" },
+    { "from": "collected", "to": "rollback", "label": "no" },
+    { "from": "reset", "to": "ok" }
+  ]
+}

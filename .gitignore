@@ -1,0 +1,8 @@
+node_modules/
+__pycache__/
+.DS_Store
+l3/l3-plan-render/tests/fixtures/*/index.html
+l3/l3-plan-render/tests/fixtures/*/plan.state.json
+docs/**/*.html
+docs/**/*.state.json
+tests/eval/runs/

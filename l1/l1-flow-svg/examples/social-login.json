@@ -1,0 +1,52 @@
+{
+  "id": "social",
+  "title": "Social sign-in across web, mobile, identity and Auth0",
+  "desc": {
+    "before": "Today: web and mobile both post the provider code to the identity service, which exchanges it with Auth0 and looks the user up by the raw email. A case difference misses the existing account and creates a duplicate.",
+    "after": "Proposed: the identity service normalises the email (trim, lowercase) before the lookup, so a case difference links to the existing account. Linking is the part being asked about."
+  },
+  "views": { "before": "Today", "after": "Proposed" },
+  "layout": { "hgap": 104 },
+  "containers": [
+    { "id": "web", "label": "Web · example.com", "row": 0, "col": 0 },
+    { "id": "mobile", "label": "iOS + Android", "row": 1, "col": 0 },
+    { "id": "identity", "label": "Identity service", "row": 0, "col": 1, "rowspan": 2 },
+    { "id": "auth0", "label": "Auth0", "kind": "vendor", "row": 0, "col": 2 }
+  ],
+  "nodes": [
+    { "id": "w_click", "container": "web", "shape": "start", "name": "Sign in with Google" },
+    { "id": "w_post", "container": "web", "shape": "call", "name": "POST /auth/social", "sub": "provider=google" },
+    { "id": "m_tap", "container": "mobile", "shape": "start", "name": "Sign in with Apple" },
+    { "id": "m_post", "container": "mobile", "shape": "call", "name": "POST /auth/social", "sub": "provider=apple" },
+
+    { "id": "entry", "container": "identity", "shape": "start", "name": "POST /auth/social" },
+    { "id": "exchange", "container": "identity", "shape": "call", "name": "exchangeCode", "sub": "code → tokens" },
+    { "id": "normalize", "container": "identity", "name": "normalizeEmail", "sub": "trim + lowercase", "only": "after" },
+    { "id": "lookup", "container": "identity", "shape": "decision", "name": "Email on file?",
+      "state": { "before": "bug", "after": "changed" } },
+    { "id": "link", "container": "identity", "name": "linkIdentity", "sub": "add provider to user",
+      "state": { "after": "focus" } },
+    { "id": "create", "container": "identity", "name": "createUser" },
+    { "id": "linked", "container": "identity", "shape": "stop", "name": "200 linked", "outcome": "ok" },
+    { "id": "created", "container": "identity", "shape": "stop", "name": "201 created",
+      "state": { "before": "bug" }, "sub": { "before": "duplicate account" } },
+
+    { "id": "token", "container": "auth0", "name": "/oauth/token", "sub": "code → id_token" }
+  ],
+  "edges": [
+    { "from": "w_click", "to": "w_post" },
+    { "from": "m_tap", "to": "m_post" },
+    { "from": "w_post", "to": "entry", "label": "HTTPS" },
+    { "from": "m_post", "to": "entry", "label": "HTTPS" },
+    { "from": "entry", "to": "exchange" },
+    { "from": "exchange", "to": "token", "label": "code" },
+    { "from": "token", "to": "lookup", "label": "id_token", "only": "before" },
+    { "from": "token", "to": "normalize", "label": "id_token" , "only": "after" },
+    { "from": "normalize", "to": "lookup" },
+    { "from": "lookup", "to": "link", "label": "yes" },
+    { "from": "lookup", "to": "create", "label": { "before": "no · Foo@x ≠ foo@x", "after": "no" },
+      "state": { "before": "bug" } },
+    { "from": "link", "to": "linked" },
+    { "from": "create", "to": "created", "state": { "before": "bug" } }
+  ]
+}

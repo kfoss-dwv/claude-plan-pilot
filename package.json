@@ -1,0 +1,12 @@
+{
+  "name": "claude-plan-pilot",
+  "private": true,
+  "description": "Dev setup only: husky runs the L3 render lock on commit.",
+  "scripts": {
+    "prepare": "husky",
+    "test": "python3 -m unittest discover -s l3/l3-plan-render/tests -t l3/l3-plan-render/tests && python3 -m unittest discover -s tests"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

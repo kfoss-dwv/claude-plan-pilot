@@ -1,0 +1,86 @@
+/* erd-svg — styles for diagrams emitted by scripts/erd.py.
+   Every color resolves through a host-page token when the page defines it
+   (--surface, --line, --fg, --muted, --code-bg, --accent, --accent-soft,
+   --upd, --upd-soft, --font-sans, --font-mono) and falls back to the
+   built-in palette otherwise, so the diagram matches whatever page it is
+   pasted into and still renders on a bare page or as a standalone .svg. */
+.erd, .erd-figure {
+  --erd-surface: var(--surface, #FFFFFF);
+  --erd-head: var(--code-bg, #EFEDEA);
+  --erd-line: var(--line, #DCD8D3);
+  --erd-fg: var(--fg, #1A1817);
+  --erd-muted: var(--muted, #5E5A56);
+  --erd-accent: var(--accent, #B71C22);
+  --erd-accent-soft: var(--accent-soft, #F8E4E4);
+  --erd-upd: var(--upd, #1F5FA8);
+  --erd-upd-soft: var(--upd-soft, #E3ECF7);
+  --erd-sans: var(--font-sans, "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif);
+  --erd-mono: var(--font-mono, "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .erd, :root:not([data-theme="light"]) .erd-figure, svg.erd:root {
+    --erd-surface: var(--surface, #1E1C1B);
+    --erd-head: var(--code-bg, #272422);
+    --erd-line: var(--line, #3A3633);
+    --erd-fg: var(--fg, #ECE9E6);
+    --erd-muted: var(--muted, #A8A39E);
+    --erd-accent: var(--accent, #F2666C);
+    --erd-accent-soft: var(--accent-soft, #3B1D1F);
+    --erd-upd: var(--upd, #86B4EC);
+    --erd-upd-soft: var(--upd-soft, #1B2A3D);
+  }
+}
+:root[data-theme="dark"] .erd, :root[data-theme="dark"] .erd-figure {
+  --erd-surface: var(--surface, #1E1C1B);
+  --erd-head: var(--code-bg, #272422);
+  --erd-line: var(--line, #3A3633);
+  --erd-fg: var(--fg, #ECE9E6);
+  --erd-muted: var(--muted, #A8A39E);
+  --erd-accent: var(--accent, #F2666C);
+  --erd-accent-soft: var(--accent-soft, #3B1D1F);
+  --erd-upd: var(--upd, #86B4EC);
+  --erd-upd-soft: var(--upd-soft, #1B2A3D);
+}
+
+.erd-figure { margin: 0; background: var(--erd-surface); border: 1px solid var(--erd-line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.erd-scroll { overflow-x: auto; }
+.erd-main { display: block; width: 100%; height: auto; }
+
+.erd .tb-box { fill: var(--erd-surface); stroke: var(--erd-line); stroke-width: 1; }
+.erd .tb-head { fill: var(--erd-head); }
+.erd .tb-rule { stroke: var(--erd-line); }
+.erd .tb-title { font: 600 13px var(--erd-mono); fill: var(--erd-fg); }
+.erd .tb-tag { font: 500 11px var(--erd-sans); fill: var(--erd-muted); letter-spacing: 0.04em; }
+.erd .col { font: 400 12px var(--erd-mono); fill: var(--erd-fg); }
+.erd .note { font: 400 11px var(--erd-sans); fill: var(--erd-muted); }
+
+.erd .tb-anchor .tb-box { stroke: var(--erd-fg); stroke-width: 1.5; }
+.erd .tb-legacy .tb-box { stroke-dasharray: 4 3; }
+.erd .tb-legacy .col, .erd .tb-legacy .tb-title, .erd .col-muted { fill: var(--erd-muted); }
+.erd .tb-new .tb-box { stroke: var(--erd-accent); stroke-width: 2; }
+.erd .tb-new .tb-head { fill: var(--erd-accent-soft); }
+.erd .tb-new .tb-tag, .erd .note-new { fill: var(--erd-accent); font-weight: 600; }
+.erd .tb-changed .tb-box { stroke: var(--erd-upd); stroke-width: 2; }
+.erd .tb-changed .tb-head { fill: var(--erd-upd-soft); }
+.erd .tb-changed .tb-tag, .erd .note-changed { fill: var(--erd-upd); font-weight: 600; }
+.erd .row-new { fill: var(--erd-accent-soft); }
+.erd .col-new { fill: var(--erd-accent); font-weight: 500; }
+.erd .row-changed { fill: var(--erd-upd-soft); }
+.erd .col-changed { fill: var(--erd-upd); font-weight: 500; }
+
+.erd .link { fill: none; stroke: var(--erd-muted); stroke-width: 1.25; stroke-linejoin: round; }
+.erd .link-legacy { stroke-dasharray: 4 3; }
+.erd .link-new { stroke: var(--erd-accent); stroke-width: 2.25; }
+.erd .link-changed { stroke: var(--erd-upd); stroke-width: 2.25; }
+.erd .mk { fill: none; stroke: var(--erd-muted); stroke-width: 1.25; stroke-linecap: round; }
+.erd .mk-new { stroke: var(--erd-accent); stroke-width: 2; }
+.erd .mk-changed { stroke: var(--erd-upd); stroke-width: 2; }
+.erd circle.mk { fill: var(--erd-surface); }
+.erd .key-edge { stroke: var(--erd-line); stroke-width: 2; }
+.erd .rel-label { font: 600 11px var(--erd-mono); fill: var(--erd-muted); }
+.erd .rel-label-new { fill: var(--erd-accent); font-size: 12px; }
+.erd .rel-label-changed { fill: var(--erd-upd); font-size: 12px; }
+
+.erd-legend { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0; padding: 0; list-style: none; font: 13px var(--erd-sans); color: var(--erd-muted); }
+.erd-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.erd-key { width: 36px; height: 16px; flex: none; overflow: visible; }

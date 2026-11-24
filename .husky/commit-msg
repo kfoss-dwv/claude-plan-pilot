@@ -1,0 +1,6 @@
+# Append the reason the render lock collected (pre-commit) as a Render-Change: trailer.
+f="$(git rev-parse --git-dir)/RENDER_CHANGE"
+if [ -f "$f" ]; then
+  git interpret-trailers --in-place --if-exists add --trailer "Render-Change: $(cat "$f")" "$1"
+  rm -f "$f"
+fi

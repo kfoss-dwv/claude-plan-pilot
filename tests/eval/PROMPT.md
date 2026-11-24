@@ -1,0 +1,1 @@
+plan-pilot: customers say coupons don't reduce their tax. A $30.00 cart with FIVEOFF is charged $2.40 tax instead of $2.00. Plan the fix for this repo (shop/orders). Put the plan under ./plans. Don't implement it.

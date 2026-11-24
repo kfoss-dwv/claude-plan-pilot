@@ -1,0 +1,115 @@
+/* flow-svg — styles for diagrams emitted by scripts/flow.py.
+   Neutrals and fonts resolve through host-page tokens when the page defines
+   them (--surface, --line, --fg, --muted, --code-bg, --font-sans, --font-mono)
+   so the figure sits naturally in any page. The semantic colours are the
+   skill's own and are NOT taken from the host: red means "where the bug
+   fires" and nothing else, so a host --accent can never leak red into "new". */
+.flow, .flow-figure {
+  --flow-surface: var(--surface, #FFFFFF);
+  --flow-band: var(--code-bg, #F1F3F6);
+  --flow-line: var(--line, #D6DBE1);
+  --flow-fg: var(--fg, #18202A);
+  --flow-muted: var(--muted, #5B6672);
+  --flow-bug: #C62828;     --flow-bug-soft: #FCE8E6;
+  --flow-new: #1F5FBF;     --flow-new-soft: #E4EDFB;
+  --flow-warn: #9A5C00;    --flow-warn-soft: #FDF1DC;
+  --flow-focus: #7A3FC7;   --flow-focus-soft: #F1E9FB;
+  --flow-ok: #2B7A4B;      --flow-ok-soft: #E3F3EA;
+  --flow-sans: var(--font-sans, "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif);
+  --flow-mono: var(--font-mono, "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .flow, :root:not([data-theme="light"]) .flow-figure, svg.flow:root {
+    --flow-surface: var(--surface, #181C22);
+    --flow-band: var(--code-bg, #1F242C);
+    --flow-line: var(--line, #2F3742);
+    --flow-fg: var(--fg, #E4E8EE);
+    --flow-muted: var(--muted, #98A3B0);
+    --flow-bug: #F2726B;   --flow-bug-soft: #3A1F1C;
+    --flow-new: #82AEF5;   --flow-new-soft: #1A2A40;
+    --flow-warn: #E4A74C;  --flow-warn-soft: #352812;
+    --flow-focus: #B795F0; --flow-focus-soft: #2A2140;
+    --flow-ok: #6CC495;    --flow-ok-soft: #17301F;
+  }
+}
+:root[data-theme="dark"] .flow, :root[data-theme="dark"] .flow-figure {
+  --flow-surface: var(--surface, #181C22);
+  --flow-band: var(--code-bg, #1F242C);
+  --flow-line: var(--line, #2F3742);
+  --flow-fg: var(--fg, #E4E8EE);
+  --flow-muted: var(--muted, #98A3B0);
+  --flow-bug: #F2726B;   --flow-bug-soft: #3A1F1C;
+  --flow-new: #82AEF5;   --flow-new-soft: #1A2A40;
+  --flow-warn: #E4A74C;  --flow-warn-soft: #352812;
+  --flow-focus: #B795F0; --flow-focus-soft: #2A2140;
+  --flow-ok: #6CC495;    --flow-ok-soft: #17301F;
+}
+
+.flow-figure { margin: 0; background: var(--flow-surface); border: 1px solid var(--flow-line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.flow-cap { font: 600 13px var(--flow-sans); color: var(--flow-fg); letter-spacing: 0.02em; }
+.flow-scroll { overflow-x: auto; }
+.flow-main { display: block; width: 100%; height: auto; }
+
+/* containers: one per service, vendor, client or stage */
+.flow .ct-box { fill: var(--flow-band); stroke: var(--flow-line); stroke-width: 1; }
+.flow .ct-vendor .ct-box { fill: none; stroke: var(--flow-muted); stroke-dasharray: 6 4; }
+.flow .ct-client .ct-box { fill: none; stroke: var(--flow-line); }
+.flow .ct-label { font: 600 11px var(--flow-mono); letter-spacing: 0.08em; fill: var(--flow-muted); }
+.flow .ct-tag { font: 500 11px var(--flow-sans); fill: var(--flow-muted); }
+.flow .ct.st-new .ct-box { stroke: var(--flow-new); stroke-width: 2; }
+.flow .ct.st-changed .ct-box { stroke: var(--flow-new); stroke-width: 2; stroke-dasharray: 6 4; }
+.flow .ct.st-removed .ct-box { stroke-dasharray: 4 3; opacity: 0.6; }
+.flow .ct.st-bug .ct-box { stroke: var(--flow-bug); stroke-width: 2; }
+.flow .ct.st-focus .ct-box { stroke: var(--flow-focus); stroke-width: 2; }
+
+/* groups: a runtime unit inside a container (a lambda, a task) around the steps it runs */
+.flow .gp-box { fill: none; stroke: var(--flow-muted); stroke-width: 1.25; }
+.flow .gp-label { font: 600 11.5px var(--flow-mono); fill: var(--flow-fg); }
+.flow .gp-tag { font: 600 10.5px var(--flow-sans); letter-spacing: 0.08em; fill: var(--flow-muted); }
+.flow .gp.st-new .gp-box { stroke: var(--flow-new); stroke-width: 1.75; }
+.flow .gp.st-changed .gp-box { stroke: var(--flow-new); stroke-width: 1.75; stroke-dasharray: 6 4; }
+
+/* nodes */
+.flow .nd-shape { fill: var(--flow-surface); stroke: var(--flow-muted); stroke-width: 1.25; }
+.flow .nd-bar { stroke: var(--flow-muted); stroke-width: 1.25; }
+.flow .nd-name { font: 600 12.5px var(--flow-mono); fill: var(--flow-fg); }
+.flow .nd-sub { font: 400 11.5px var(--flow-sans); fill: var(--flow-muted); }
+.flow .oc-ok .nd-shape { fill: var(--flow-ok-soft); stroke: var(--flow-ok); stroke-width: 1.75; }
+.flow .st-bug .nd-shape { fill: var(--flow-bug-soft); stroke: var(--flow-bug); stroke-width: 2; }
+.flow .st-bug .nd-bar { stroke: var(--flow-bug); }
+.flow .st-new .nd-shape { fill: var(--flow-new-soft); stroke: var(--flow-new); stroke-width: 2; }
+.flow .st-new .nd-bar { stroke: var(--flow-new); }
+.flow .st-changed .nd-shape { stroke: var(--flow-new); stroke-width: 2; stroke-dasharray: 5 3; }
+.flow .st-changed .nd-bar { stroke: var(--flow-new); }
+.flow .st-warn .nd-shape { fill: var(--flow-warn-soft); stroke: var(--flow-warn); stroke-width: 2; stroke-dasharray: 6 4; }
+.flow .st-removed .nd-shape { fill: none; stroke: var(--flow-muted); stroke-dasharray: 4 3; }
+.flow .st-removed .nd-name, .flow .st-removed .nd-sub { fill: var(--flow-muted); text-decoration: line-through; }
+.flow .st-focus .nd-shape { stroke: var(--flow-focus); stroke-width: 1.75; }
+.flow g.nd .nd-rim { fill: none; }
+.flow .nd-halo { fill: var(--flow-focus-soft); stroke: var(--flow-focus); stroke-width: 2; }
+
+/* edges */
+.flow .ed { fill: none; stroke: var(--flow-muted); stroke-width: 1.4; stroke-linejoin: round; }
+.flow .ed-bug { stroke: var(--flow-bug); stroke-width: 2.25; }
+.flow .ed-new { stroke: var(--flow-new); stroke-width: 2.25; }
+.flow .ed-changed { stroke: var(--flow-new); stroke-width: 2.25; stroke-dasharray: 6 4; }
+.flow .ed-warn { stroke: var(--flow-warn); stroke-width: 2; stroke-dasharray: 6 4; }
+.flow .ed-removed { stroke: var(--flow-muted); stroke-dasharray: 4 3; opacity: 0.7; }
+.flow .ed-focus { stroke: var(--flow-focus); stroke-width: 2.5; }
+.flow .ah { fill: var(--flow-muted); }
+.flow .ah-bug { fill: var(--flow-bug); }
+.flow .ah-new, .flow .ah-changed { fill: var(--flow-new); }
+.flow .ah-warn { fill: var(--flow-warn); }
+.flow .ah-focus { fill: var(--flow-focus); }
+.flow .ah-removed { fill: var(--flow-muted); opacity: 0.7; }
+.flow .ed-label { font: 500 11.5px var(--flow-sans); fill: var(--flow-muted); }
+.flow .lb-bug { fill: var(--flow-bug); font-weight: 600; }
+.flow .lb-new, .flow .lb-changed { fill: var(--flow-new); font-weight: 600; }
+.flow .lb-warn { fill: var(--flow-warn); font-weight: 600; }
+.flow .lb-focus { fill: var(--flow-focus); font-weight: 600; }
+.flow .lb-removed { text-decoration: line-through; }
+
+/* legend */
+.flow-legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0; padding: 0; list-style: none; font: 13px var(--flow-sans); color: var(--flow-muted); }
+.flow-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.flow-key { width: 30px; height: 18px; flex: none; overflow: visible; }

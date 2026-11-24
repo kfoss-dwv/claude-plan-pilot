@@ -1,0 +1,64 @@
+{
+  "id": "save-offers",
+  "title": "Save offers schema",
+  "desc": "retention_offer_campaigns is the anchor for every offer. It references campaign_kinds, retention_offer_cohorts, coupons and the legacy retention_offer_styles. upgrade_offer_styles (one per campaign), offer_campaign_images and user_retention_offers point back at the campaign. The new offer_application_endpoints table is referenced by a new nullable column on the campaign: many campaigns to zero or one endpoint.",
+  "layout": { "hgap": 110, "valign": "center" },
+  "legend": { "": "existing join", "legacy": "legacy style path", "new": "new" },
+  "tables": [
+    { "id": "kinds", "name": "campaign_kinds", "col": 0, "cols": [
+      { "name": "id", "note": "PK" },
+      { "name": "name", "note": "cancelation · winback · upgrade" } ] },
+    { "id": "cohorts", "name": "retention_offer_cohorts", "col": 0, "cols": [
+      { "name": "id", "note": "PK" },
+      { "name": "cohort_key", "note": "basic_monthly#active" },
+      { "name": "is_promo_plan", "note": "bool" } ] },
+    { "id": "coupons", "name": "coupons", "col": 0, "cols": [
+      { "name": "id", "note": "PK" },
+      "coupon_code",
+      { "name": "external_coupon_id", "note": "billing vendor" },
+      { "name": "discount_*", "note": "amount · type · duration" } ] },
+    { "id": "styles", "name": "retention_offer_styles", "col": 0, "variant": "legacy", "tag": "legacy", "cols": [
+      { "name": "id", "note": "PK" }, "header_text", "cta_text", "coupon_description" ] },
+
+    { "id": "campaigns", "name": "retention_offer_campaigns", "col": 1, "variant": "anchor", "tag": "every offer", "w": 290, "y": 42, "cols": [
+      { "name": "id", "note": "PK" },
+      { "name": "p_id", "note": "uuid" },
+      "name",
+      { "name": "campaign_kind_id", "note": "kind" },
+      { "name": "retention_offer_cohort_id", "note": "plan" },
+      { "name": "coupon_id", "note": "coupon" },
+      { "name": "retention_offer_styles_id", "note": "legacy style" },
+      { "name": "weight", "note": "rank" },
+      "published_at · unpublished_at",
+      { "name": "offer_application_endpoint_id", "note": "NEW", "state": "new" } ] },
+    { "id": "redemptions", "name": "user_retention_offers", "col": 1, "w": 290, "cols": [
+      { "name": "id", "note": "PK" },
+      "retention_offer_campaign_id", "coupon_id", "person_id", "accepted_at · expires_at" ] },
+
+    { "id": "upgrade", "name": "upgrade_offer_styles", "col": 2, "cols": [
+      { "name": "id", "note": "PK" },
+      { "name": "campaign_id", "note": "UNIQUE" },
+      "offer_headline", "gift_label · gift_description", "membership_type_target_id" ] },
+    { "id": "images", "name": "offer_campaign_images", "col": 2, "cols": [
+      { "name": "campaign_id", "note": "PK" },
+      { "name": "media_size_id", "note": "PK" },
+      "image_id" ] },
+    { "id": "endpoints", "name": "offer_application_endpoints", "col": 2, "variant": "new", "tag": "NEW", "cols": [
+      { "name": "id", "note": "PK" },
+      { "name": "key", "note": "UNIQUE" },
+      "name", "description", "created_at · updated_at" ] }
+  ],
+  "relations": [
+    { "from": "campaigns.campaign_kind_id", "to": "kinds.id", "card": "0..N:1" },
+    { "from": "campaigns.retention_offer_cohort_id", "to": "cohorts.id", "card": "0..N:1" },
+    { "from": "campaigns.coupon_id", "to": "coupons.id", "card": "0..N:1" },
+    { "from": "campaigns.retention_offer_styles_id", "to": "styles.id", "card": "0..N:0..1", "variant": "legacy" },
+    { "from": "upgrade.campaign_id", "to": "campaigns.id", "card": "0..1:1" },
+    { "from": "images.campaign_id", "to": "campaigns.id", "card": "0..N:1" },
+    { "from": "redemptions.retention_offer_campaign_id", "to": "campaigns", "card": "0..N:1", "label": "redemptions" },
+    { "from": "campaigns.offer_application_endpoint_id", "to": "endpoints.id", "card": "0..N:0..1", "variant": "new" }
+  ],
+  "notes": [
+    { "below": "endpoints", "text": "e.g. key = cancellation_flow" }
+  ]
+}

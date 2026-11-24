@@ -1,0 +1,29 @@
+{
+  "name": "claude-plan-pilot",
+  "version": "0.1.0",
+  "description": "Plan pages: L0 routing, L1 drawing, L2 plan writers, L3 md→HTML render. Claude writes plan.md; a script renders it 1:1 to an interactive page.",
+  "author": {
+    "name": "kfoss-dwv"
+  },
+  "repository": "https://github.com/kfoss-dwv/claude-plan-pilot",
+  "skills": [
+    "./l0/",
+    "./l1/",
+    "./l2/",
+    "./l3/"
+  ],
+  "userConfig": {
+    "plans_root": {
+      "type": "directory",
+      "title": "Plans root",
+      "description": "Folder new plans are written under.",
+      "default": "~/github/claude-plans"
+    },
+    "path_template": {
+      "type": "string",
+      "title": "Plan path template",
+      "description": "Where a plan lives under the plans root. {project} = the effort, {slug} = the plan's short name.",
+      "default": "{project}/plan-pilot/{slug}"
+    }
+  }
+}
