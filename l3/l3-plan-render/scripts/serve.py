@@ -157,7 +157,11 @@ class Site:
         out = render.html_path(md)
         with self.lock:
             if self.stale(md, out):
-                page = render.Page(md, md.read_text())
+                try:
+                    text = md.read_text()
+                except (UnicodeDecodeError, OSError) as e:
+                    return out, [f"{md.name}: can't read it ({e})"]
+                page = render.Page(md, text)
                 text = render.build(page)
                 if page.errors:
                     return out, page.errors
@@ -173,7 +177,7 @@ class Site:
         for p in self.mds():
             rel = p.relative_to(self.root)
             href = str(rel.parent / "index.html") if p.name == "plan.md" else str(rel.with_suffix(".html"))
-            meta, _, _ = render.split_front(p.read_text())
+            meta, _, _ = render.split_front(p.read_text(errors="replace"))
             rows.append(f'<li><a href="/{html.escape(href)}">{html.escape(meta.get("title") or str(rel))}</a> '
                         f'<code>{html.escape(str(rel))}</code>{" · " + html.escape(meta["status"]) if meta.get("status") else ""}</li>')
         css = (render.ASSETS / "plan.css").read_text()
@@ -184,13 +188,30 @@ class Site:
 
 
 def read_state(path):
+    """Every collection as a dict of dict rows. Raises ValueError on a file that isn't that shape."""
     d = json.loads(path.read_text() or "{}") if path.exists() else {}
-    return {**d, **{c: dict(d.get(c) or {}) for c in PAGE_FIELDS}}
+    if not isinstance(d, dict):
+        raise ValueError("not a JSON object")
+    for c in PAGE_FIELDS:
+        if not isinstance(d.get(c) or {}, dict):
+            raise ValueError(f"{c} is not an object")
+    return {**d, **{c: {k: v for k, v in (d.get(c) or {}).items()} for c in PAGE_FIELDS}}
 
 
 def make_handler(site, verbose=False):
     class Handler(http.server.BaseHTTPRequestHandler):
         server_version = "plan-pilot"
+        timeout = 15                                   # a client that stalls mid-body can't hold a thread
+
+        def handle_one_request(self):
+            try:
+                super().handle_one_request()
+            except Exception as e:                     # last resort: answer, log, keep serving
+                sys.stderr.write(f"serve: {type(e).__name__}: {e}\n")
+                try:
+                    self.send(500, {"error": f"{type(e).__name__}: {e}"})
+                except Exception:
+                    pass
 
         def log_message(self, fmt, *args):
             if verbose:
@@ -208,6 +229,10 @@ def make_handler(site, verbose=False):
         def host_ok(self):
             if (self.headers.get("Host") or "").rsplit(":", 1)[0] not in ("127.0.0.1", "localhost"):
                 self.send(403, {"error": "bad host"})
+                return False
+            origin = self.headers.get("Origin")
+            if origin and urlparse(origin).hostname not in ("127.0.0.1", "localhost"):
+                self.send(403, {"error": "cross-origin request"})
                 return False
             return True
 
@@ -255,12 +280,20 @@ def make_handler(site, verbose=False):
             md = self.page_md(parse_qs(u.query))
             if not md:
                 return self.send(404, {"error": "no .md for that page"})
-            if "application/json" not in (self.headers.get("Content-Type") or ""):
+            if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/json":
                 return self.send(415, {"error": "send application/json"})
             try:
-                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                n = -1
+            if not 0 <= n <= 1_000_000:
+                return self.send(400, {"error": "bad Content-Length"})
+            try:
+                body = json.loads(self.rfile.read(n) or b"{}")
             except ValueError:
                 return self.send(400, {"error": "bad JSON"})
+            if not isinstance(body, dict):
+                return self.send(400, {"error": "send a JSON object"})
             coll, rid = m.groups()
             sp = render.state_path(md)
             with site.lock:
@@ -268,7 +301,8 @@ def make_handler(site, verbose=False):
                     rows = read_state(sp)
                 except ValueError as e:
                     return self.send(500, {"error": f"{sp.name} is not valid JSON: {e}"})
-                row = dict(rows[coll].get(rid) or {})
+                row = rows[coll].get(rid)
+                row = dict(row) if isinstance(row, dict) else {}
                 for k in PAGE_FIELDS[coll]:            # the page only ever writes these
                     if isinstance(body.get(k), str):
                         row[k] = body[k]

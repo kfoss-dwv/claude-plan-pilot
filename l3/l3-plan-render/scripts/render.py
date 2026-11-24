@@ -103,7 +103,7 @@ def l1(kind):
 
 def split_front(text):
     """(meta, meta_lines, body). The front matter is blanked, not cut, so token lines stay file lines."""
-    lines = text.split("\n")
+    lines = text.lstrip("\ufeff").replace("\r\n", "\n").split("\n")
     meta, where = {}, {}
     if lines and lines[0].strip() == "---":
         for i in range(1, len(lines)):
@@ -118,25 +118,22 @@ def split_front(text):
     return meta, where, lines
 
 
-HEAD_ATTRS = re.compile(r"^(#{1,6}\s.*?)\s*\{((?:[#.][\w-]+\s*)+)\}\s*$")
+HEAD_ATTRS = re.compile(r"^(.*?)\s*\{((?:[#.][^\s{}]+\s*)+)\}\s*$")
 
 
 def strip_heading_attrs(lines):
-    """`## 03 Title {#p-03 .open}` -> attrs keyed by 1-based line; the line loses the braces."""
+    """`## 03 Title {#p-03 .open}` -> attrs keyed by the heading's 1-based first line; the braces go.
+    Heading lines come from markdown-it itself, so fences, indents and setext match the render."""
     attrs = {}
-    in_fence = None
-    for i, ln in enumerate(lines):
-        f = re.match(r"^\s*(`{3,}|~{3,})", ln)
-        if f:
-            in_fence = None if in_fence and f.group(1)[0] == in_fence[0] and len(f.group(1)) >= len(in_fence) else (in_fence or f.group(1))
+    for t in md.parse("\n".join(lines)):
+        if t.type != "heading_open" or not t.map:
             continue
-        if in_fence:
-            continue
-        m = HEAD_ATTRS.match(ln)
-        if m:
+        i = t.map[0] if t.markup.startswith("#") else t.map[1] - 2      # setext: last text line
+        m = HEAD_ATTRS.match(lines[i])
+        if m and m.group(1).strip().strip("#").strip():
             parts = m.group(2).split()
-            attrs[i + 1] = {"id": next((p[1:] for p in parts if p.startswith("#")), None),
-                            "classes": [p[1:] for p in parts if p.startswith(".")]}
+            attrs[t.map[0] + 1] = {"id": next((x[1:] for x in parts if x.startswith("#")), None),
+                                   "classes": [x[1:] for x in parts if x.startswith(".")]}
             lines[i] = m.group(1)
     return attrs
 
@@ -182,6 +179,7 @@ class Page:
             if t.map and t.nesting == 1:
                 t.attrSet("data-md", rng(t))
         self.errors, self.warns = [], []
+        self.raw = text
         self.ids, self.qids, self.cids, self.spec_ids = set(), [], [], []
         self.css = set()
         self.has = {"questions": None, "challenges": None}
@@ -192,13 +190,13 @@ class Page:
     def warn(self, line, msg):
         self.warns.append(f"{self.path.name}:{line}: {msg}" if line else msg)
 
-    def uid(self, want, line):
+    def uid(self, want, line, explicit=True):
         base = want
         n = 2
         while want in self.ids:
             want = f"{base}-{n}"
             n += 1
-        if want != base:
+        if want != base and explicit:
             self.err(line, f"duplicate id #{base}")
         self.ids.add(want)
         return want
@@ -260,6 +258,42 @@ def code_pair(page, before, after):
             f'{code(page, before, mb, "before")}{code(page, after, ma, "after")}</div>')
 
 
+GRID_MAX = 40          # containers / table columns; beyond this the l1 layout loops for minutes
+COORD_MAX = 20000
+
+
+def spec_problem(kind, spec):
+    """A reason the spec can't be drawn, or None. Guards the l1 scripts against hangs and dup ids."""
+    def small(v, lo, hi):
+        return v is None or (isinstance(v, int) and not isinstance(v, bool) and lo <= v <= hi)
+    if kind == "flow":
+        nodes = spec.get("nodes")
+        if not isinstance(nodes, list) or not all(isinstance(n, dict) and n.get("id") for n in nodes):
+            return 'every node needs an "id"'
+        ids = [n["id"] for n in nodes]
+        dup = sorted({i for i in ids if ids.count(i) > 1})
+        if dup:
+            return f"duplicate node id(s) {dup}"
+        if len(nodes) > 400:
+            return "more than 400 nodes"
+        for c in spec.get("containers") or []:
+            if not isinstance(c, dict) or not all(small(c.get(k), 0, GRID_MAX) for k in ("row", "col")) \
+                    or not all(small(c.get(k), 1, GRID_MAX) for k in ("rowspan", "colspan")):
+                return f"container {c.get('id') if isinstance(c, dict) else c!r}: row/col must be 0-{GRID_MAX}, spans 1-{GRID_MAX}"
+    else:
+        tables = spec.get("tables")
+        if not isinstance(tables, list) or not all(isinstance(t, dict) and (t.get("name") or t.get("id")) for t in tables):
+            return 'every table needs a "name"'
+        ids = [t.get("id") or t.get("name") for t in tables]
+        dup = sorted({i for i in ids if ids.count(i) > 1})
+        if dup:
+            return f"duplicate table id(s) {dup}"
+        for t in tables:
+            if not small(t.get("col"), 0, GRID_MAX) or not all(small(t.get(k), 0, COORD_MAX) for k in ("x", "y", "w")):
+                return f"table {t.get('name')}: col must be 0-{GRID_MAX}, x/y/w 0-{COORD_MAX}"
+    return None
+
+
 def chart(page, tok, args):
     kind = tok.info.split()[0]
     line = tok.map[0] + 1
@@ -268,8 +302,16 @@ def chart(page, tok, args):
     except ValueError as e:
         page.err(line, f"{kind} fence is not valid JSON: {e}")
         return f'<div class="callout bug" data-md="{rng(tok)}"><h3>Bad {kind} spec</h3><p>{esc(e)}</p></div>'
-    caption = spec.pop("caption", "") if isinstance(spec, dict) else ""
-    sid = spec.get("id") if isinstance(spec, dict) else None
+    if not isinstance(spec, dict):
+        page.err(line, f"{kind} spec must be a JSON object")
+        return f'<div class="callout bug" data-md="{rng(tok)}"><h3>Bad {kind} spec</h3><p>not a JSON object</p></div>'
+    problem = spec_problem(kind, spec)
+    if problem:
+        page.err(line, f"{kind}: {problem}")
+        return f'<div class="callout bug" data-md="{rng(tok)}"><h3>Bad {kind} spec</h3><p>{esc(problem)}</p></div>'
+    caption = spec.pop("caption", "")
+    caption = caption if isinstance(caption, str) else json.dumps(caption)
+    sid = spec.get("id")
     if not sid:
         page.err(line, f"{kind} spec needs an \"id\" (prefixes its svg ids; unique per page)")
     elif sid in page.spec_ids:
@@ -360,6 +402,8 @@ def question_card(page, tok, args):
         page.err(line, f"question id {qid!r} should be q1, q2 …")
     if qid in page.qids:
         page.err(line, f"duplicate question id {qid}")
+    elif qid in page.ids:
+        page.err(line, f"question id {qid} is already a fold or tab id")
     page.qids.append(qid)
     page.ids.add(qid)
     keys, opts, rest = parse_keyed(tok)
@@ -372,8 +416,11 @@ def question_card(page, tok, args):
     if "context" in keys:
         c = keys["context"]
         o.append(f'<div class="ctx" data-md="{c[1]}-{c[1]}"><p>{inline(c[0])}</p></div>')
-    if rest:
-        o.append(f'<div class="ctx" data-md="{rest[0][1]}-{rest[-1][1]}">{md.render(chr(10).join(r[0] for r in rest))}</div>')
+    after = bool(opts and rest and rest[0][1] > opts[-1][1])
+    rest_html = (f'<div class="ctx" data-md="{rest[0][1]}-{rest[-1][1]}">{md.render(chr(10).join(r[0] for r in rest))}</div>'
+                 if rest else "")
+    if rest and not after:
+        o.append(rest_html)
     if opts:
         o.append(f'<div class="opts" role="radiogroup" aria-label="{esc(qid.upper())} options">')
         recs = 0
@@ -389,6 +436,8 @@ def question_card(page, tok, args):
                      f'<span><span class="opt-label">{inline(label)}</span>{"<span class=rec>recommended</span>" if rec else ""}'
                      f'{f"<span class=opt-desc>{inline(desc)}</span>" if desc else ""}</span></label>')
         o.append("</div>")
+        if after:
+            o.append(rest_html)
         if not recs:
             page.warn(line, f"question {qid}: no option marked recommended (*)")
     ph = keys.get("placeholder", ["Answer or note"])[0]
@@ -404,6 +453,8 @@ def challenge_card(page, tok, args):
         page.err(line, f"challenge id {cid!r} should be c1, c2 …")
     if cid in page.cids:
         page.err(line, f"duplicate challenge id {cid}")
+    elif cid in page.ids:
+        page.err(line, f"challenge id {cid} is already a fold or tab id")
     page.cids.append(cid)
     page.ids.add(cid)
     keys, opts, rest = parse_keyed(tok)
@@ -472,47 +523,76 @@ def ledger(page, tok, args):
 
 
 class Sanitizer(HTMLParser):
-    URL_ATTRS = {"href", "src", "action", "formaction", "xlink:href", "srcset", "poster", "data"}
+    """Keeps an html-block inside its wrapper: drops scripts, handlers, javascript: URLs and
+    elements that navigate, embed or swallow the page; closes what it opens, ignores stray closers."""
+    URL_ATTRS = {"href", "src", "action", "formaction", "xlink:href", "srcset", "poster", "data", "background"}
+    DROP_ALL = {"script"}                                   # tag and content
+    DROP_TAG = {"iframe", "frame", "frameset", "object", "embed", "base", "meta", "link", "form", "textarea",
+                "plaintext", "xmp", "noscript", "noembed", "title", "portal", "animate", "set",
+                "animatemotion", "animatetransform", "html", "head", "body"}
+    VOID = {"area", "br", "col", "hr", "img", "input", "source", "track", "wbr"}
 
     def __init__(self):
         super().__init__(convert_charrefs=False)
-        self.out, self.skip, self.dropped = [], 0, 0
+        self.out, self.skip, self.dropped, self.open = [], 0, 0, []
 
     def tag(self, tag, attrs, close=""):
         keep = []
         for k, v in attrs:
-            if k.startswith("on") or (k in self.URL_ATTRS and re.sub(r"[\s\x00-\x1f]", "", v or "").lower().startswith(("javascript:", "vbscript:"))):
+            val = re.sub(r"[\s\x00-\x1f]", "", v or "").lower()
+            if k.startswith("on") or k == "srcdoc" or (k in self.URL_ATTRS and val.startswith(("javascript:", "vbscript:", "data:text/html"))):
                 self.dropped += 1
                 continue
             keep.append(f" {k}" if v is None else f' {k}="{esc(v)}"')
         return f"<{tag}{''.join(keep)}{close}>"
 
     def handle_starttag(self, tag, attrs):
-        if tag == "script":
+        if tag in self.DROP_ALL:
             self.skip += 1
             self.dropped += 1
-        elif not self.skip:
+        elif self.skip:
+            return
+        elif tag in self.DROP_TAG:
+            self.dropped += 1
+        else:
             self.out.append(self.tag(tag, attrs))
+            if tag not in self.VOID:
+                self.open.append(tag)
 
     def handle_startendtag(self, tag, attrs):
-        if tag != "script" and not self.skip:
-            self.out.append(self.tag(tag, attrs, "/"))
+        if self.skip or tag in self.DROP_ALL or tag in self.DROP_TAG:
+            return
+        self.out.append(self.tag(tag, attrs, "/"))
 
     def handle_endtag(self, tag):
-        if tag == "script":
+        if tag in self.DROP_ALL:
             self.skip = max(0, self.skip - 1)
-        elif not self.skip:
-            self.out.append(f"</{tag}>")
+        elif self.skip or tag not in self.open:
+            return                                          # stray closer: would escape the wrapper
+        else:
+            while self.open:
+                t = self.open.pop()
+                self.out.append(f"</{t}>")
+                if t == tag:
+                    break
 
     def handle_data(self, d):
         if not self.skip:
-            self.out.append(d)
+            self.out.append(d if self.open and self.open[-1] in ("style",) else html.escape(html.unescape(d), quote=False)
+                            if "<" in d else d)
 
     def handle_entityref(self, name):
-        self.out.append(f"&{name};")
+        if not self.skip:
+            self.out.append(f"&{name};")
 
     def handle_charref(self, name):
-        self.out.append(f"&#{name};")
+        if not self.skip:
+            self.out.append(f"&#{name};")
+
+    def close(self):
+        super().close()
+        self.out += [f"</{t}>" for t in reversed(self.open)]
+        self.open = []
 
 
 def sanitize(raw):
@@ -610,8 +690,10 @@ def check_list(block):
         if not inl or not re.match(r"^\[[ xX]\]\s", inl.content):
             return None
         marks.append(inl)
-    for inl in marks:
+    for i, inl in zip(items, marks):
         txt = inl.children[0]
+        if re.match(r"^\[[xX]\]", txt.content):
+            block[i].attrJoin("class", "done")
         txt.content = re.sub(r"^\[[ xX]\]\s", "", txt.content)
     block[0].attrJoin("class", "check")
     return md.renderer.render(block, md.options, {})
@@ -691,7 +773,7 @@ def structure(page):
     if not panels:
         panels.append({"h1": None, "intro": [], "folds": []})
     if any(p["h1"] for p in panels) and panels[0]["h1"] is None and (panels[0]["intro"] or panels[0]["folds"]):
-        page.err(panels[0]["intro"][0][0].map[0] + 1 if panels[0]["intro"] else None,
+        page.err(panels[0]["intro"][0][0].map[0] + 1 if panels[0]["intro"] else panels[0]["folds"][0]["h2"][0].map[0] + 1,
                  "content before the first # heading; every block must sit under a tab (H1)")
     return panels
 
@@ -702,7 +784,7 @@ def render_fold(page, f):
     text = heading_text(f["h2"])
     attrs = page.attrs.get(line, {})
     num = re.match(r"^(\d{2})\s+(.*)$", text)
-    sid = page.uid(attrs.get("id") or "p-" + slug(num.group(1) if num else text), line)
+    sid = page.uid(attrs.get("id") or "p-" + slug(num.group(1) if num else text), line, bool(attrs.get("id")))
     title_html = md.renderer.render(f["h2"][1:2], md.options, {})
     if num:
         title_html = re.sub(r"^\s*" + re.escape(num.group(1)) + r"\s+", "", title_html, count=1)
@@ -745,14 +827,15 @@ def build(page):
     for k in meta:
         if k not in FRONT_KEYS:
             page.warn(ml[k], f"unknown front matter key `{k}`")
-    for n, ln in enumerate(page.lines, 1):
+    for n, ln in enumerate(page.raw.split("\n"), 1):
         if re.search(r"(?<!`)" + re.escape(PLACEHOLDER) + r"(?!`)", ln):
             page.err(n, f"leftover {PLACEHOLDER}")
 
     panels = structure(page)
     ids = [panel_id(page, p, i) for i, p in enumerate(panels)]
-    if len(set(ids)) != len(ids):
-        page.err(None, f"two tabs share an id: {ids}")
+    for i, pid in enumerate(ids):
+        if pid in ids[:i]:
+            page.err(panels[i]["h1"][0].map[0] + 1 if panels[i]["h1"] else None, f"two tabs share the id #{pid}")
     order = [TAB_IDS.get(x.strip().lower(), slug(x)) for x in meta.get("tabs", "").split(",") if x.strip()]
     if order and panels[0]["h1"]:
         if sorted(order) != sorted(ids):
@@ -819,9 +902,11 @@ def build(page):
     if sp.exists():
         try:
             state = json.loads(sp.read_text() or "{}")
-        except ValueError as e:
+            if not isinstance(state, dict):
+                raise ValueError("not a JSON object")
+        except (ValueError, OSError) as e:
             page.warn(None, f"{sp.name} is not valid JSON ({e}); rendering without saved state")
-    state_json = json.dumps(state, ensure_ascii=False).replace("</", "<\\/")
+    state_json = json.dumps(state, ensure_ascii=False).replace("<", "\\u003c")
     body = (f'<div class="page">\n{header}\n' + "\n".join(panel_html) + "\n</div>\n")
     doc = ("<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">\n"
@@ -842,7 +927,13 @@ def load(path):
     p = Path(path)
     if not p.exists():
         sys.exit(f"render.py: {p} not found")
-    page = Page(p, p.read_text())
+    try:
+        text = p.read_text()
+    except UnicodeDecodeError as e:
+        sys.exit(f"render.py: {p} is not valid UTF-8 ({e.reason} at byte {e.start})")
+    except OSError as e:
+        sys.exit(f"render.py: can't read {p}: {e.strerror}")
+    page = Page(p, text)
     out = build(page)
     return page, out
 

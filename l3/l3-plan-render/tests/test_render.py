@@ -93,6 +93,53 @@ class T2Mapping(unittest.TestCase):
         self.assertLess(out.index('id="tab-questions"'), out.index('id="tab-plan"'))
 
 
+class Fuzzed(unittest.TestCase):
+    """Regressions from the fuzz pass: none of these may raise, hang or escape their wrapper."""
+
+    def test_non_string_caption_and_bad_shapes(self):
+        for spec in ('{"id":"f","caption":5,"nodes":[{"id":"a","name":"A"}],"edges":[]}', '[1,2]',
+                     '{"id":"f","nodes":[{"id":"a"},{"id":"a"}]}',
+                     '{"id":"f","containers":[{"id":"c","row":200000}],"nodes":[{"id":"a","name":"A","container":"c"}]}'):
+            build(HEAD + "# Plan\n```flow\n" + spec + "\n```\n")
+        page, _ = build(HEAD + '# Plan\n```erd\n{"id":"e","tables":[{"name":"t","col":50000000,"cols":["a"]}]}\n```\n')
+        self.assertTrue(page.errors)
+
+    def test_html_block_cannot_escape_or_swallow(self):
+        page, out = build(HEAD + "# Plan\n## A\ngist\n```html-block\n</div></details></section></div><textarea><iframe srcdoc=x></iframe><b>open\n```\n## B\nafter\n")
+        body = out.split('<div class="page">', 1)[1].split("<script")[0]
+        self.assertNotIn("<textarea", body)
+        self.assertNotIn("<iframe", body)
+        blk = body.split('<div class="html-block"', 1)[1].split('id="p-b"')[0]
+        inner = blk.split("</div>", 1)[0]                     # up to the wrapper's own close
+        self.assertNotIn("</details>", inner)                 # stray closers were dropped
+        self.assertIn("</div></details></section>", blk)      # the fold still closes where it should
+        page, out = build(HEAD + "# Plan\n```html-block\n<b>open\n```\n")
+        self.assertIn("<b>open\n</b></div>", out)
+
+    def test_state_json_cannot_break_out(self):
+        d = Path(tempfile.mkdtemp())
+        (d / "plan.md").write_text(HEAD + "# Plan\nx\n")
+        (d / "plan.state.json").write_text('{"comments":{"c":{"text":"<!--<script></script>"}}}')
+        out = render.build(render.Page(d / "plan.md", (d / "plan.md").read_text()))
+        state = out.split('id="plan-state">', 1)[1].split("</script>", 1)[0]
+        self.assertNotIn("<", state)
+
+    def test_heading_attrs_follow_markdown_fences(self):
+        page, out = build(HEAD + "# Plan\n```text\n```bash\n## inside {#zz}\n```\n## Real {#rr}\n")
+        self.assertIn("## inside {#zz}", out)
+        self.assertIn('id="rr"', out)
+
+    def test_checked_items_and_trailing_question_text(self):
+        page, out = build(HEAD + "# Plan\n- [x] done\n- [ ] todo\n# Open questions\n```question q1\ntitle: Pick\n- a* Alpha\ntrailing note\n```\n")
+        self.assertIn('class="done"', out)
+        self.assertLess(out.index('class="opts"'), out.index("trailing note"))
+
+    def test_front_matter_placeholder_and_id_clash(self):
+        self.assertTrue(build("---\ntitle: T\ncontract: 1\nsummary: TODO(plan)\n---\n# Plan\n")[0].errors)
+        e = build(HEAD + "# Plan\n## A {#q1}\nx\n# Open questions\n```question q1\ntitle: T\n```\n")[0].errors
+        self.assertTrue(any("already a fold or tab id" in x for x in e))
+
+
 class T3Lint(unittest.TestCase):
     def errs(self, text):
         return build(text)[0].errors

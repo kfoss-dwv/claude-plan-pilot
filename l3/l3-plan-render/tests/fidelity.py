@@ -12,6 +12,7 @@ with html.parser, then reports
 deviations = the sum. Exit 1 when deviations > 0.
 """
 import argparse
+import html
 import json
 import re
 import sys
@@ -148,28 +149,29 @@ def expected_fence_text(tok):
     if kind in ("flow", "erd"):
         return ""                                         # checked via node ids
     if kind in ("question", "challenge"):
-        out = []
+        out, rest = [], []
         for ln in body.splitlines():
             m = re.match(r"^(title|context):\s*(.*)$", ln)
-            if m:
-                out.append(m.group(2))
-            elif ln.startswith("- "):
+            if m and not rest:
+                out.append(strip_md_inline(m.group(2)))
+            elif kind == "question" and ln.startswith("- ") and not rest:
                 m = re.match(r"^- (\S+?)\*?\s+(.*)$", ln)
-                out.append(m.group(2).replace(" — ", " ").replace(" -- ", " ") if m else ln[2:])
-            elif not re.match(r"^placeholder:", ln):
-                out.append(ln)
-        return strip_md_inline("\n".join(out))
+                out.append(strip_md_inline(m.group(2).replace(" — ", " ").replace(" -- ", " ") if m else ln[2:]))
+            elif not (re.match(r"^placeholder:", ln) and not rest):
+                rest.append(ln)
+        return " ".join(out) + " " + html.unescape(re.sub(r"<[^>]+>", " ", md.render("\n".join(rest))))
     if kind == "files":
         return "\n".join(re.sub(r"^\s*- ", "", ln) for ln in body.splitlines())
     if kind == "ledger":
-        return " ".join(tok.info.split()[1:]) + "\n" + "\n".join(ln.lstrip("!=").replace("|", " ") for ln in body.splitlines())
+        return " ".join(tok.info.split()[1:]) + "\n" + "\n".join((ln[1:] if ln[:1] in "!=" else ln).replace("|", " ") for ln in body.splitlines())
     if kind == "html-block":
-        return re.sub(r"<[^>]+>", " ", re.sub(r"<script.*?</script>", "", body, flags=re.S))
+        visible = re.sub(r"<(script|style|svg|textarea|title)\b.*?(</\1\s*>|$)|<!--.*?(-->|$)", " ", body, flags=re.S | re.I)
+        return html.unescape(re.sub(r"<[^>]*>?", " ", visible))
     return body
 
 
 def strip_md_inline(s):
-    return re.sub(r"<[^>]+>", " ", md.renderInline(s))
+    return html.unescape(re.sub(r"<[^>]+>", " ", md.renderInline(s)))
 
 
 def check(md_path, html_path):
@@ -237,7 +239,7 @@ def check(md_path, html_path):
         elif t.type in ("paragraph_open", "bullet_list_open", "ordered_list_open", "blockquote_open", "table_open"):
             txt = block_text(b)
             if t.type == "blockquote_open":
-                txt = re.sub(r"\[!(bug|ok|note|warn)\]", "", txt)
+                txt = re.sub(r"\[!(bug|ok|note|warn)\]", "", txt, flags=re.I)
             if t.type == "bullet_list_open":
                 txt = re.sub(r"\[[ xX]\]\s", "", txt)
             look(rng, txt, t.type.replace("_open", ""))
@@ -260,9 +262,20 @@ def check(md_path, html_path):
         res["counts"].append(f"chart nodes missing from the SVG: {sorted(lost)[:8]}")
 
     visible = re.sub(r"\s+", " ", "".join(tree.text_parts))
+    prose = []
+    for i, t in enumerate(tokens):
+        if t.type != "inline":
+            continue
+        txt = "".join(c.content if c.type == "text" else " " for c in t.children or [])
+        if i >= 2 and tokens[i - 2].type == "blockquote_open" and tokens[i - 2].level == 0:
+            txt = re.sub(r"^\[!(bug|ok|note|warn)\]", "", txt, flags=re.I)      # consumed by the callout
+        prose.append(txt)
+    for k in ("eyebrow", "summary", "h1", "title", "chips"):
+        prose.append(meta.get(k, ""))
+    prose = " ".join(prose)
     for pat, what in ((r"```", "a fence marker"), (r"\{#[\w-]+", "a heading {#id}"), (r"\[!(bug|ok|note|warn)\]", "a callout marker"),
                       (r"^---$", "front matter")):
-        hits = len(re.findall(pat, visible, flags=re.M))
+        hits = len(re.findall(pat, visible, flags=re.M | re.I)) - len(re.findall(pat, prose, flags=re.M | re.I))
         if hits > 0:
             res["leftovers"].append(f"{hits}× {what} in visible text")
     res["deviations"] = len(res["missing"]) + len(res["text"]) + len(res["counts"]) + len(res["leftovers"])

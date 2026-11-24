@@ -247,3 +247,5 @@ svg [data-node] { cursor: pointer; }
 .c-item .c-reply .k { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ok); }
 .flash { animation: flash 1.2s ease-out; }
 @keyframes flash { from { box-shadow: 0 0 0 4px var(--focus-soft); } to { box-shadow: 0 0 0 4px transparent; } }
+.check li.done { color: var(--muted); }
+.check li.done::before { background: var(--ok); border-color: var(--ok); }

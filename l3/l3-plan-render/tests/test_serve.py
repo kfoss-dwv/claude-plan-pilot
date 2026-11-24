@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import unittest
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -68,6 +69,16 @@ class Integration(unittest.TestCase):
         self.assertEqual(st["comments"]["cm-x"]["status"], "open")
         saved = json.loads((self.tmp / "simple" / "plan.state.json").read_text())
         self.assertEqual(saved["comments"]["cm-x"]["md"], "19-24")
+
+    def test_I2b_rejects_cross_site_and_bad_bodies(self):
+        u = url_of(run("start", str(self.tmp / "simple")).stdout)
+        for headers, data, code in (({"Content-Type": "text/plain;x=application/json"}, b'{"note":"x"}', 415),
+                                    ({"Content-Type": "application/json", "Origin": "https://evil.example"}, b'{"note":"x"}', 403),
+                                    ({"Content-Type": "application/json"}, b"[1,2]", 400)):
+            req = urllib.request.Request(u + "__plan/answers/q2?page=/", data=data, headers=headers, method="POST")
+            with self.assertRaises(urllib.error.HTTPError) as cm:
+                urllib.request.urlopen(req, timeout=10)
+            self.assertEqual(cm.exception.code, code)
 
     def test_I3_rebuild_on_edit(self):
         u = url_of(run("start", str(self.tmp / "large")).stdout)

@@ -81,6 +81,8 @@ def run_one(run_id, a):
     tool_uses, skills, exceptions, check_errors = 0, [], [], 0
     for e in events:
         msg = e.get("message") or {}
+        if not isinstance(msg, dict):          # e.g. {"type":"system","subtype":"permission_denied","message":"…"}
+            continue
         for c in msg.get("content") or [] if isinstance(msg.get("content"), list) else []:
             if c.get("type") == "tool_use":
                 tool_uses += 1
