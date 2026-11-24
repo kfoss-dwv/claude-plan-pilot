@@ -154,6 +154,8 @@ def expected_fence_text(tok):
             m = re.match(r"^(title|context):\s*(.*)$", ln)
             if m and not rest:
                 out.append(strip_md_inline(m.group(2)))
+            elif ln.startswith("  ") and ln.strip() and out and not rest:
+                out.append(strip_md_inline(ln.strip()))          # continuation of the key above
             elif kind == "question" and ln.startswith("- ") and not rest:
                 m = re.match(r"^- (\S+?)\*?\s+(.*)$", ln)
                 out.append(strip_md_inline(m.group(2).replace(" — ", " ").replace(" -- ", " ") if m else ln[2:]))

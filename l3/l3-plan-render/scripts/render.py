@@ -282,6 +282,10 @@ def spec_problem(kind, spec):
                 return f"container {c.get('id') if isinstance(c, dict) else c!r}: row/col must be 0-{GRID_MAX}, spans 1-{GRID_MAX}"
     else:
         tables = spec.get("tables")
+        if not isinstance(tables, list) or not tables:
+            return 'needs a "tables" list'
+        if not all(isinstance(c, str) or (isinstance(c, dict) and c.get("name")) for t in tables if isinstance(t, dict) for c in t.get("cols") or []):
+            return 'every column needs a "name"'
         if not isinstance(tables, list) or not all(isinstance(t, dict) and (t.get("name") or t.get("id")) for t in tables):
             return 'every table needs a "name"'
         ids = [t.get("id") or t.get("name") for t in tables]
@@ -827,6 +831,9 @@ def build(page):
     for k in meta:
         if k not in FRONT_KEYS:
             page.warn(ml[k], f"unknown front matter key `{k}`")
+    for t in page.tokens:
+        if t.type == "fence" and t.level > 0 and fence_kind(t) in FENCES:
+            page.warn(t.map[0] + 1, f"a ```{fence_kind(t)} fence inside a list or quote renders as plain code; move it to the top level")
     for n, ln in enumerate(page.raw.split("\n"), 1):
         if re.search(r"(?<!`)" + re.escape(PLACEHOLDER) + r"(?!`)", ln):
             page.err(n, f"leftover {PLACEHOLDER}")
