@@ -34,7 +34,9 @@ import fidelity  # noqa: E402
 PROMPT = (HERE / "PROMPT.md").read_text().strip()
 TOOLS = ("Read,Write,Edit,Glob,Grep,Skill,Bash(python3:*),Bash(ls:*),Bash(mkdir:*),Bash(cat:*),"
          "Bash(find:*),Bash(grep:*),Bash(head:*),Bash(sed -n:*),Bash(wc:*)")
-OUR_SCRIPTS = ("render.py", "serve.py", "flow.py", "erd.py", "fidelity.py")
+OUR_SCRIPTS = ("render.py", "serve.py", "flow.py", "erd.py", "fidelity.py", "plan.py")
+SKILLS_DIR = Path.home() / ".claude" / "skills"
+HTML_PLAN = SKILLS_DIR / "html-plan" / "scripts" / "plan.py"
 
 
 def git_sha():
@@ -58,12 +60,15 @@ def run_one(run_id, a):
     base = Path(tempfile.mkdtemp(prefix=f"plan-pilot-eval-{run_id}-"))
     work, home = base / "work", base / "pphome"
     shutil.copytree(HERE / "sample-app", work)
-    cmd = ["claude", "-p", "--plugin-dir", str(ROOT), "--add-dir", str(ROOT), "--output-format", "stream-json", "--verbose",
+    old = a.skill == "html-plan"            # baseline: the standalone html-plan skill, no plugin loaded
+    prompt = re.sub(r"^plan-pilot:", "html-plan:", PROMPT) if old else PROMPT
+    load = ["--add-dir", str(SKILLS_DIR)] if old else ["--plugin-dir", str(ROOT), "--add-dir", str(ROOT)]
+    cmd = ["claude", "-p", *load, "--output-format", "stream-json", "--verbose",
            "--permission-mode", "acceptEdits", "--allowedTools", TOOLS, "--strict-mcp-config", "--no-session-persistence",
            "--max-budget-usd", str(a.budget)]
     if a.model:
         cmd += ["--model", a.model]
-    cmd.append(PROMPT)
+    cmd.append(prompt)
     env = {**os.environ, "CLAUDE_PLAN_PILOT_HOME": str(home)}
     t0 = time.time()
     p = subprocess.run(cmd, cwd=work, env=env, capture_output=True, text=True, timeout=a.timeout)
@@ -97,6 +102,8 @@ def run_one(run_id, a):
     tokens = {k: usage.get(k, 0) or 0 for k in ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")}
     models = list((result.get("modelUsage") or {}).keys())
 
+    if old:
+        return finish_html_plan(run_id, a, base, work, p, result, wall, models, tokens, tool_uses, skills, exceptions, check_errors)
     plans = sorted(work.rglob("plan.md"))
     plans = [x for x in plans if "node_modules" not in x.parts]
     scored = []
@@ -119,7 +126,7 @@ def run_one(run_id, a):
 
     first = scored[0] if scored else {}
     row = {
-        "id": run_id, "label": a.label, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "sha": git_sha(),
+        "id": run_id, "label": a.label, "skill": a.skill, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "sha": git_sha(),
         "models": models, "exit": p.returncode, "is_error": result.get("is_error"), "subtype": result.get("subtype"),
         "duration_s": round((result.get("duration_ms") or wall * 1000) / 1000, 1), "wall_s": round(wall, 1),
         "turns": result.get("num_turns"), "tool_uses": tool_uses, "skills": skills,
@@ -139,12 +146,41 @@ def run_one(run_id, a):
     return row
 
 
+def finish_html_plan(run_id, a, base, work, p, result, wall, models, tokens, tool_uses, skills, exceptions, check_errors):
+    """Score an html-plan run: its own plan.py check; there is no source .md, so no fidelity."""
+    subprocess.run(["pkill", "-f", str(work)], capture_output=True)      # any plan.py serve it left running
+    pages = sorted(x for x in work.rglob("*.html") if "node_modules" not in x.parts and not x.name.startswith("."))
+    page = next((x for x in pages if x.name == "index.html"), pages[0] if pages else None)
+    check = subprocess.run([sys.executable, str(HTML_PLAN), "check", str(page)], capture_output=True, text=True) if page else None
+    row = {
+        "id": run_id, "label": a.label, "skill": a.skill, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "sha": "html-plan", "models": models, "exit": p.returncode, "is_error": result.get("is_error"), "subtype": result.get("subtype"),
+        "duration_s": round((result.get("duration_ms") or wall * 1000) / 1000, 1), "wall_s": round(wall, 1),
+        "turns": result.get("num_turns"), "tool_uses": tool_uses, "skills": skills, "cost_usd": result.get("total_cost_usd"), **tokens,
+        "total_tokens": sum(tokens.values()), "script_exceptions": len(exceptions), "exception_tails": exceptions[:3],
+        "check_errors_seen": check_errors, "plans": len(pages), "check_ok": bool(check and check.returncode == 0),
+        "check_output": (check.stdout + check.stderr)[-600:] if check else "no page", "deviations": None, "md_bytes": None,
+        "html_bytes": page.stat().st_size if page else None, "adapter": "html-plan",
+        "questions": len(re.findall(r'<article class="q"', page.read_text())) if page else None,
+        "figures": len(re.findall(r'class="(?:flow|erd)-figure"', page.read_text())) if page else None,
+        "served": "127.0.0.1:" in (result.get("result") or ""), "workdir": str(base),
+    }
+    with open(HERE / "results.jsonl", "a") as f:
+        f.write(json.dumps(row) + "\n")
+    if not a.keep and row["check_ok"] and not exceptions:
+        shutil.rmtree(base, ignore_errors=True)
+        row["workdir"] = "(removed)"
+    return row
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--label", default="manual")
     ap.add_argument("--id", default=None, help="run id prefix")
     ap.add_argument("--model", default=None)
+    ap.add_argument("--skill", choices=("plan-pilot", "html-plan"), default="plan-pilot",
+                    help="html-plan = baseline run of the standalone html-plan skill (same prompt, no plugin)")
     ap.add_argument("--budget", type=float, default=5.0, help="max USD per run (claude --max-budget-usd)")
     ap.add_argument("--timeout", type=int, default=1500)
     ap.add_argument("--keep", action="store_true", help="keep the temp workdir even when the run passed")
